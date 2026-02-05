@@ -1665,6 +1665,99 @@
             saveToLocalStorage();
         }
 
+        // Criar nova recorrência mestre
+        function createRecurrenceMaster(transactionData) {
+            const recurrenceType = document.getElementById('transaction-recurrence-type').value;
+            
+            if (recurrenceType === 'none') return null;
+            
+            const masterId = 'rec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            const startDate = document.getElementById('transaction-start-date').value;
+            const endDate = document.getElementById('transaction-end-date').value || null;
+            const dueDay = parseInt(document.getElementById('transaction-due-day').value);
+            
+            const master = {
+                id: financialData.recurrenceMasters.length > 0 
+                    ? Math.max(...financialData.recurrenceMasters.map(m => m.id)) + 1 
+                    : 1,
+                masterId: masterId,
+                name: transactionData.name,
+                type: transactionData.type,
+                category: transactionData.category,
+                amount: transactionData.amount,
+                dueDay: dueDay,
+                recurrenceType: recurrenceType,
+                startDate: startDate,
+                endDate: endDate,
+                notes: transactionData.notes || ''
+            };
+            
+            // Adicionar informações de parcelamento se for parcelada
+            if (recurrenceType === 'parceled') {
+                const currentInstallment = parseInt(document.getElementById('transaction-current-installment').value) || 1;
+                const totalInstallments = parseInt(document.getElementById('transaction-total-installments').value) || 12;
+                
+                master.currentInstallment = currentInstallment;
+                master.totalInstallments = totalInstallments;
+            }
+            
+            financialData.recurrenceMasters.push(master);
+            return masterId;
+        }
+
+        // Atualizar recorrência mestre
+        function updateRecurrenceMaster(masterId, transactionData) {
+            const masterIndex = financialData.recurrenceMasters.findIndex(m => m.masterId === masterId);
+            if (masterIndex === -1) return false;
+            
+            const recurrenceType = document.getElementById('transaction-recurrence-type').value;
+            const startDate = document.getElementById('transaction-start-date').value;
+            const endDate = document.getElementById('transaction-end-date').value || null;
+            const dueDay = parseInt(document.getElementById('transaction-due-day').value);
+            
+            financialData.recurrenceMasters[masterIndex] = {
+                ...financialData.recurrenceMasters[masterIndex],
+                name: transactionData.name,
+                type: transactionData.type,
+                category: transactionData.category,
+                amount: transactionData.amount,
+                dueDay: dueDay,
+                recurrenceType: recurrenceType,
+                startDate: startDate,
+                endDate: endDate,
+                notes: transactionData.notes || ''
+            };
+            
+            // Atualizar informações de parcelamento se for parcelada
+            if (recurrenceType === 'parceled') {
+                const currentInstallment = parseInt(document.getElementById('transaction-current-installment').value) || 1;
+                const totalInstallments = parseInt(document.getElementById('transaction-total-installments').value) || 12;
+                
+                financialData.recurrenceMasters[masterIndex].currentInstallment = currentInstallment;
+                financialData.recurrenceMasters[masterIndex].totalInstallments = totalInstallments;
+            }
+            
+            return true;
+        }
+
+        // Excluir recorrência mestre e todas as transações relacionadas
+        function deleteRecurrenceMaster(masterId) {
+            // Remover transações geradas por esta recorrência
+            financialData.transactions = financialData.transactions.filter(t => 
+                t.masterId !== masterId || t.isModified === true
+            );
+            
+            // Remover recorrência mestre
+            financialData.recurrenceMasters = financialData.recurrenceMasters.filter(m => m.masterId !== masterId);
+            
+            saveToLocalStorage();
+            updateDashboard();
+        }
+
+        // ==============================
+        // SISTEMA DE NOTIFICAÇÕES
+        // ==============================
+
         // Obter todas as transações futuras (próximos 12 meses)
         function getFutureTransactions() {
             const today = new Date();
@@ -2063,10 +2156,379 @@
         }
 
         // ==============================
-        // FUNÇÕES PRINCIPAIS (resumidas)
+        // FUNÇÕES DE GERENCIAMENTO
         // ==============================
 
-        // Atualizar dashboard
+        // Mostrar modal de transação
+        function showTransactionModal(transactionId = null) {
+            editingTransactionId = transactionId;
+            const modal = document.getElementById('transaction-modal');
+            const form = document.getElementById('transaction-form');
+            const deleteBtn = document.getElementById('delete-transaction');
+            const deleteAllBtn = document.getElementById('delete-all-recurrences');
+            
+            // Resetar campos
+            form.reset();
+            document.getElementById('transaction-is-recurring-master').value = 'false';
+            document.getElementById('transaction-original-id').value = '';
+            
+            // Mostrar/ocultar botões
+            deleteBtn.style.display = 'none';
+            deleteAllBtn.style.display = 'none';
+            
+            if (transactionId) {
+                // Modo edição
+                document.getElementById('modal-title').textContent = 'Editar Transação';
+                deleteBtn.style.display = 'block';
+                
+                const transaction = financialData.transactions.find(t => t.id == transactionId);
+                if (transaction) {
+                    document.getElementById('transaction-id').value = transaction.id;
+                    document.getElementById('transaction-original-id').value = transaction.id;
+                    document.getElementById('transaction-type').value = transaction.type;
+                    document.getElementById('transaction-amount').value = transaction.amount;
+                    document.getElementById('transaction-name').value = transaction.name;
+                    document.getElementById('transaction-category').value = transaction.category;
+                    document.getElementById('transaction-start-date').value = transaction.date;
+                    document.getElementById('transaction-due-day').value = transaction.dueDay || '';
+                    document.getElementById('transaction-notes').value = transaction.notes || '';
+                    
+                    // Verificar se é uma transação recorrente
+                    if (transaction.masterId) {
+                        const master = financialData.recurrenceMasters.find(m => m.masterId === transaction.masterId);
+                        if (master) {
+                            document.getElementById('transaction-is-recurring-master').value = 'true';
+                            document.getElementById('transaction-recurrence-type').value = master.recurrenceType;
+                            document.getElementById('transaction-start-date').value = master.startDate;
+                            document.getElementById('transaction-end-date').value = master.endDate || '';
+                            
+                            if (master.recurrenceType === 'parceled') {
+                                document.getElementById('transaction-current-installment').value = master.currentInstallment || '';
+                                document.getElementById('transaction-total-installments').value = master.totalInstallments || '';
+                            }
+                            
+                            // Mostrar botão para excluir todas as recorrências
+                            deleteAllBtn.style.display = 'block';
+                        }
+                    }
+                    
+                    // Disparar eventos para atualizar campos
+                    document.getElementById('transaction-type').dispatchEvent(new Event('change'));
+                    document.getElementById('transaction-recurrence-type').dispatchEvent(new Event('change'));
+                    
+                    setTimeout(() => {
+                        document.getElementById('transaction-category').value = transaction.category;
+                    }, 100);
+                }
+            } else {
+                // Modo nova transação
+                document.getElementById('modal-title').textContent = 'Nova Transação';
+                document.getElementById('transaction-start-date').value = new Date().toISOString().split('T')[0];
+                
+                // Definir valores padrão
+                document.getElementById('transaction-type').value = 'expense';
+                document.getElementById('transaction-recurrence-type').value = 'none';
+                document.getElementById('transaction-due-day').value = new Date().getDate();
+                
+                // Disparar eventos
+                document.getElementById('transaction-type').dispatchEvent(new Event('change'));
+                document.getElementById('transaction-recurrence-type').dispatchEvent(new Event('change'));
+            }
+            
+            modal.style.display = 'flex';
+        }
+
+        // Salvar transação
+        function saveTransaction(e) {
+            e.preventDefault();
+            
+            const id = document.getElementById('transaction-id').value;
+            const originalId = document.getElementById('transaction-original-id').value;
+            const type = document.getElementById('transaction-type').value;
+            const amount = parseFloat(document.getElementById('transaction-amount').value);
+            const name = document.getElementById('transaction-name').value;
+            const category = document.getElementById('transaction-category').value;
+            const startDate = document.getElementById('transaction-start-date').value;
+            const dueDay = parseInt(document.getElementById('transaction-due-day').value);
+            const recurrenceType = document.getElementById('transaction-recurrence-type').value;
+            const notes = document.getElementById('transaction-notes').value;
+            const isRecurringMaster = document.getElementById('transaction-is-recurring-master').value === 'true';
+            
+            // Verificar se é uma edição de transação recorrente
+            let masterId = null;
+            if (originalId) {
+                const originalTransaction = financialData.transactions.find(t => t.id == originalId);
+                if (originalTransaction && originalTransaction.masterId) {
+                    masterId = originalTransaction.masterId;
+                }
+            }
+            
+            // Se for uma recorrência, criar/atualizar recorrência mestre
+            if (recurrenceType !== 'none') {
+                if (masterId) {
+                    // Atualizar recorrência existente
+                    const updated = updateRecurrenceMaster(masterId, {
+                        name, type, category, amount, notes
+                    });
+                    
+                    if (updated) {
+                        // Marcar transação como modificada
+                        const transactionData = {
+                            id: id ? parseInt(id) : financialData.transactions.length > 0 
+                                ? Math.max(...financialData.transactions.map(t => t.id)) + 1 
+                                : 1,
+                            masterId: masterId,
+                            name: name,
+                            type: type,
+                            category: category,
+                            amount: amount,
+                            date: startDate,
+                            dueDay: dueDay,
+                            notes: notes,
+                            isGenerated: false,
+                            isModified: true
+                        };
+                        
+                        if (recurrenceType === 'parceled') {
+                            const currentInstallment = parseInt(document.getElementById('transaction-current-installment').value) || 1;
+                            const totalInstallments = parseInt(document.getElementById('transaction-total-installments').value) || 12;
+                            transactionData.installments = `${currentInstallment}/${totalInstallments}`;
+                        }
+                        
+                        // Adicionar ou atualizar transação
+                        if (id) {
+                            const index = financialData.transactions.findIndex(t => t.id == id);
+                            if (index !== -1) {
+                                financialData.transactions[index] = {
+                                    ...financialData.transactions[index],
+                                    ...transactionData
+                                };
+                            }
+                        } else {
+                            financialData.transactions.push(transactionData);
+                        }
+                    }
+                } else {
+                    // Criar nova recorrência
+                    masterId = createRecurrenceMaster({
+                        name, type, category, amount, notes
+                    });
+                    
+                    // Criar transação inicial
+                    const transactionData = {
+                        id: financialData.transactions.length > 0 
+                            ? Math.max(...financialData.transactions.map(t => t.id)) + 1 
+                            : 1,
+                        masterId: masterId,
+                        name: name,
+                        type: type,
+                        category: category,
+                        amount: amount,
+                        date: startDate,
+                        dueDay: dueDay,
+                        notes: notes,
+                        isGenerated: false,
+                        isModified: false
+                    };
+                    
+                    if (recurrenceType === 'parceled') {
+                        const currentInstallment = parseInt(document.getElementById('transaction-current-installment').value) || 1;
+                        const totalInstallments = parseInt(document.getElementById('transaction-total-installments').value) || 12;
+                        transactionData.installments = `${currentInstallment}/${totalInstallments}`;
+                    }
+                    
+                    financialData.transactions.push(transactionData);
+                }
+                
+                // Regenerar transações recorrentes
+                generateRecurringTransactions();
+            } else {
+                // Transação não recorrente
+                const transactionData = {
+                    id: id ? parseInt(id) : financialData.transactions.length > 0 
+                        ? Math.max(...financialData.transactions.map(t => t.id)) + 1 
+                        : 1,
+                    name: name,
+                    type: type,
+                    category: category,
+                    amount: amount,
+                    date: startDate,
+                    dueDay: dueDay,
+                    notes: notes
+                };
+                
+                if (id) {
+                    const index = financialData.transactions.findIndex(t => t.id == id);
+                    if (index !== -1) {
+                        // Se estava em uma recorrência, remover o masterId
+                        if (financialData.transactions[index].masterId) {
+                            transactionData.masterId = null;
+                            transactionData.isGenerated = false;
+                            transactionData.isModified = true;
+                        }
+                        financialData.transactions[index] = transactionData;
+                    }
+                } else {
+                    financialData.transactions.push(transactionData);
+                }
+            }
+            
+            saveToLocalStorage();
+            updateDashboard();
+            hideTransactionModal();
+            
+            showToast(id ? 'Transação atualizada com sucesso!' : 'Transação salva com sucesso!');
+        }
+
+        // Excluir transação
+        function deleteTransaction() {
+            if (!editingTransactionId) return;
+            
+            if (confirm('Tem certeza que deseja excluir esta transação?')) {
+                const transaction = financialData.transactions.find(t => t.id == editingTransactionId);
+                
+                if (transaction && transaction.masterId && !transaction.isGenerated) {
+                    // Se for a transação original de uma recorrência, apenas marcar como modificada
+                    const index = financialData.transactions.findIndex(t => t.id == editingTransactionId);
+                    financialData.transactions[index].isModified = true;
+                    financialData.transactions[index].isGenerated = false;
+                    
+                    showToast('Transação removida da recorrência! As próximas parcelas continuarão sendo geradas.', 'warning');
+                } else {
+                    // Excluir transação normal
+                    financialData.transactions = financialData.transactions.filter(
+                        t => t.id != editingTransactionId
+                    );
+                    
+                    showToast('Transação excluída com sucesso!', 'warning');
+                }
+                
+                saveToLocalStorage();
+                updateDashboard();
+                hideTransactionModal();
+            }
+        }
+
+        // Excluir todas as recorrências
+        function deleteAllRecurrences() {
+            if (!editingTransactionId) return;
+            
+            if (confirm('Tem certeza que deseja excluir TODAS as parcelas desta recorrência?\n\nEsta ação não pode ser desfeita.')) {
+                const transaction = financialData.transactions.find(t => t.id == editingTransactionId);
+                
+                if (transaction && transaction.masterId) {
+                    // Excluir recorrência mestre e todas as transações geradas
+                    deleteRecurrenceMaster(transaction.masterId);
+                    
+                    showToast('Todas as parcelas foram excluídas com sucesso!', 'warning');
+                }
+                
+                hideTransactionModal();
+            }
+        }
+
+        // Mostrar gerenciador de recorrências
+        function showRecurrenceManager() {
+            const modal = document.getElementById('recurrence-modal');
+            const list = document.getElementById('recurrence-list');
+            
+            let html = '<h3 style="margin-bottom: 20px;">Recorrências Ativas</h3>';
+            
+            if (financialData.recurrenceMasters.length === 0) {
+                html += '<p style="text-align: center; color: var(--gray); padding: 20px;">Nenhuma recorrência ativa</p>';
+            } else {
+                financialData.recurrenceMasters.forEach(master => {
+                    const transactionsCount = financialData.transactions.filter(t => 
+                        t.masterId === master.masterId
+                    ).length;
+                    
+                    const typeBadge = master.recurrenceType === 'fixed' ? 
+                        '<span class="recurrence-badge">Fixa</span>' : 
+                        '<span class="recurrence-badge" style="background-color: rgba(139, 92, 246, 0.2);">Parcelada</span>';
+                    
+                    const endDateText = master.endDate ? 
+                        ` até ${formatDateDisplay(master.endDate)}` : 
+                        ' (sem data final)';
+                    
+                    const installmentsText = master.recurrenceType === 'parceled' ? 
+                        ` | ${master.currentInstallment || 1}/${master.totalInstallments} parcelas` : 
+                        '';
+                    
+                    html += `
+                        <div style="background-color: var(--light); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div style="font-weight: 600; font-size: 16px;">
+                                    ${master.name} ${typeBadge}
+                                </div>
+                                <div style="font-weight: 700; color: ${master.type === 'income' ? 'var(--income)' : 'var(--expense)'};">
+                                    ${formatCurrency(master.amount)}
+                                </div>
+                            </div>
+                            <div style="font-size: 14px; color: var(--gray); margin-bottom: 10px;">
+                                Vence dia ${master.dueDay} | ${getCategoryName(master.category)}${installmentsText}
+                            </div>
+                            <div style="font-size: 13px; color: var(--gray); margin-bottom: 10px;">
+                                ${formatDateDisplay(master.startDate)}${endDateText}
+                            </div>
+                            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                <button class="btn-secondary" onclick="editRecurrenceMaster('${master.masterId}')" style="padding: 8px 12px; font-size: 13px;">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                                <button class="btn-danger" onclick="deleteRecurrenceMasterConfirm('${master.masterId}')" style="padding: 8px 12px; font-size: 13px;">
+                                    <i class="fas fa-trash"></i> Excluir
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            list.innerHTML = html;
+            modal.style.display = 'flex';
+        }
+
+        // Editar recorrência mestre
+        function editRecurrenceMaster(masterId) {
+            hideRecurrenceModal();
+            
+            // Encontrar a primeira transação desta recorrência
+            const transaction = financialData.transactions.find(t => 
+                t.masterId === masterId && !t.isGenerated
+            ) || financialData.transactions.find(t => t.masterId === masterId);
+            
+            if (transaction) {
+                setTimeout(() => {
+                    showTransactionModal(transaction.id);
+                }, 300);
+            }
+        }
+
+        // Confirmar exclusão de recorrência mestre
+        function deleteRecurrenceMasterConfirm(masterId) {
+            if (confirm('Tem certeza que deseja excluir esta recorrência e TODAS as suas parcelas?')) {
+                deleteRecurrenceMaster(masterId);
+                hideRecurrenceModal();
+                showToast('Recorrência excluída com sucesso!', 'warning');
+            }
+        }
+
+        // Ocultar modal de recorrência
+        function hideRecurrenceModal() {
+            document.getElementById('recurrence-modal').style.display = 'none';
+        }
+
+        // Ocultar modal de transação
+        function hideTransactionModal() {
+            document.getElementById('transaction-modal').style.display = 'none';
+            document.getElementById('transaction-form').reset();
+            editingTransactionId = null;
+        }
+
+        // ==============================
+        // FUNÇÕES DO DASHBOARD
+        // ==============================
+
+        // Atualizar dashboard completo
         function updateDashboard() {
             updateOverviewCards();
             updateOffenders();
@@ -2075,6 +2537,371 @@
             updateRecurringList();
             generateCalendar();
         }
+
+        // Atualizar cards de visão geral
+        function updateOverviewCards() {
+            const currentMonthData = getTransactionsForCurrentMonth();
+            const previousMonthData = getTransactionsForPreviousMonth();
+            
+            // Calcular totais do mês atual
+            const currentIncome = currentMonthData.filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+            const currentExpense = currentMonthData.filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0);
+            const currentBalance = currentIncome - currentExpense;
+            
+            // Calcular economias
+            const currentInvestments = currentMonthData.filter(t => t.type === 'investment')
+                .reduce((sum, t) => sum + t.amount, 0);
+            
+            // Atualizar total de economias
+            const monthlySavingsContribution = currentBalance > 0 ? 
+                currentBalance * financialData.savingsRate : 0;
+            
+            financialData.totalSavings += monthlySavingsContribution + currentInvestments;
+            financialData.totalSavings = Math.round(financialData.totalSavings * 100) / 100;
+            
+            // Calcular totais do mês anterior
+            const previousIncome = previousMonthData.filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+            const previousExpense = previousMonthData.filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0);
+            const previousBalance = previousIncome - previousExpense;
+            
+            // Salvar dados atualizados
+            saveToLocalStorage();
+            
+            // Atualizar cards
+            document.getElementById('total-income').textContent = formatCurrency(currentIncome);
+            document.getElementById('total-expense').textContent = formatCurrency(currentExpense);
+            document.getElementById('total-balance').textContent = formatCurrency(currentBalance);
+            document.getElementById('total-savings').textContent = formatCurrency(financialData.totalSavings);
+            
+            // Atualizar mudanças
+            const incomeChange = currentIncome - previousIncome;
+            const expenseChange = currentExpense - previousExpense;
+            const balanceChange = currentBalance - previousBalance;
+            const savingsAddedThisMonth = monthlySavingsContribution + currentInvestments;
+            
+            // Atualizar texto de mudança das receitas
+            const incomeChangeElement = document.getElementById('income-change');
+            if (incomeChange > 0) {
+                incomeChangeElement.innerHTML = `<i class="fas fa-arrow-up"></i><span>${formatCurrency(Math.abs(incomeChange))} a mais que mês passado</span>`;
+                incomeChangeElement.className = 'card-change positive';
+            } else if (incomeChange < 0) {
+                incomeChangeElement.innerHTML = `<i class="fas fa-arrow-down"></i><span>${formatCurrency(Math.abs(incomeChange))} a menos que mês passado</span>`;
+                incomeChangeElement.className = 'card-change negative';
+            } else {
+                incomeChangeElement.innerHTML = `<i class="fas fa-equals"></i><span>Mesmo valor que mês passado</span>`;
+                incomeChangeElement.className = 'card-change';
+            }
+            
+            // Atualizar texto de mudança das despesas
+            const expenseChangeElement = document.getElementById('expense-change');
+            if (expenseChange < 0) {
+                expenseChangeElement.innerHTML = `<i class="fas fa-arrow-down"></i><span>${formatCurrency(Math.abs(expenseChange))} a menos que mês passado</span>`;
+                expenseChangeElement.className = 'card-change positive';
+            } else if (expenseChange > 0) {
+                expenseChangeElement.innerHTML = `<i class="fas fa-arrow-up"></i><span>${formatCurrency(Math.abs(expenseChange))} a mais que mês passado</span>`;
+                expenseChangeElement.className = 'card-change negative';
+            } else {
+                expenseChangeElement.innerHTML = `<i class="fas fa-equals"></i><span>Mesmo valor que mês passado</span>`;
+                expenseChangeElement.className = 'card-change';
+            }
+            
+            // Atualizar texto do saldo
+            const balanceChangeElement = document.getElementById('balance-change');
+            if (currentBalance > 0) {
+                const percentage = currentIncome > 0 ? Math.round((currentBalance/currentIncome)*100) : 0;
+                balanceChangeElement.innerHTML = `<i class="fas fa-arrow-up"></i><span>${percentage}% da sua renda</span>`;
+                balanceChangeElement.className = 'card-change positive';
+            } else if (currentBalance < 0) {
+                balanceChangeElement.innerHTML = `<i class="fas fa-arrow-down"></i><span>Déficit de ${formatCurrency(Math.abs(currentBalance))}</span>`;
+                balanceChangeElement.className = 'card-change negative';
+            } else {
+                balanceChangeElement.innerHTML = `<i class="fas fa-equals"></i><span>Saldo zerado</span>`;
+                balanceChangeElement.className = 'card-change';
+            }
+            
+            // Atualizar texto das economias
+            const savingsChangeElement = document.getElementById('savings-change');
+            if (savingsAddedThisMonth > 0) {
+                savingsChangeElement.innerHTML = `<i class="fas fa-arrow-up"></i><span>${formatCurrency(savingsAddedThisMonth)} adicionados este mês</span>`;
+                savingsChangeElement.className = 'card-change positive';
+            } else {
+                savingsChangeElement.innerHTML = `<i class="fas fa-arrow-right"></i><span>Sem aportes este mês</span>`;
+                savingsChangeElement.className = 'card-change';
+            }
+        }
+
+        // Atualizar contas ofensoras
+        function updateOffenders() {
+            const currentMonthData = getTransactionsForCurrentMonth();
+            const expenses = currentMonthData.filter(t => t.type === 'expense');
+            
+            // Agrupar por categoria
+            const categories = {};
+            expenses.forEach(expense => {
+                if (!categories[expense.category]) {
+                    categories[expense.category] = { total: 0, count: 0 };
+                }
+                categories[expense.category].total += expense.amount;
+                categories[expense.category].count++;
+            });
+            
+            // Ordenar categorias por valor
+            const sortedCategories = Object.entries(categories)
+                .sort((a, b) => b[1].total - a[1].total)
+                .slice(0, 2);
+            
+            // Gerar HTML para categorias ofensoras
+            let categoriesHtml = '';
+            sortedCategories.forEach(([category, data], index) => {
+                const categoryName = getCategoryName(category);
+                const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+                const percentage = totalExpenses > 0 ? Math.round((data.total / totalExpenses) * 100) : 0;
+                const overBudget = Math.round(Math.random() * 20 + 10); // Simulado
+                
+                categoriesHtml += `
+                    <div class="offender-card" onclick="filterByCategory('${category}')">
+                        <div class="offender-header">
+                            <div class="offender-name">${categoryName}</div>
+                            <div class="offender-amount">${formatCurrency(data.total)}</div>
+                        </div>
+                        <div class="offender-details">
+                            <div>${overBudget}% acima do orçamento</div>
+                            <div>${percentage}% das despesas totais</div>
+                        </div>
+                        <div class="offender-progress">
+                            <div class="offender-progress-bar" style="width: ${Math.min(percentage + 20, 100)}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('offender-categories').innerHTML = categoriesHtml;
+            
+            // Encontrar contas mais caras
+            const expensiveAccounts = expenses
+                .sort((a, b) => b.amount - a.amount)
+                .slice(0, 2);
+            
+            let accountsHtml = '';
+            expensiveAccounts.forEach(account => {
+                const dueDay = account.dueDay ? `Vence dia ${account.dueDay} de cada mês` : '';
+                const installments = account.installments ? `Parcela ${account.installments}` : 'Conta fixa mensal';
+                
+                accountsHtml += `
+                    <div class="offender-card" onclick="editTransaction(${account.id})">
+                        <div class="offender-header">
+                            <div class="offender-name">${account.name}</div>
+                            <div class="offender-amount">${formatCurrency(account.amount)}</div>
+                        </div>
+                        <div class="offender-details">
+                            <div>${installments}</div>
+                            <div>${dueDay}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('offender-accounts').innerHTML = accountsHtml;
+        }
+
+        // Atualizar saúde financeira
+        function updateHealthScore() {
+            const currentMonthData = getTransactionsForCurrentMonth();
+            const expenses = currentMonthData.filter(t => t.type === 'expense');
+            const income = currentMonthData.filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+            const savings = currentMonthData.filter(t => t.type === 'investment')
+                .reduce((sum, t) => sum + t.amount, 0);
+            
+            // Calcular índice de saúde
+            let healthScore = 70; // Base
+            
+            if (income > 0) {
+                // Fator 1: Razão despesa/receita (40%)
+                const expenseRatio = expenses.reduce((s, e) => s + e.amount, 0) / income;
+                if (expenseRatio < 0.7) healthScore += 15;
+                else if (expenseRatio < 0.85) healthScore += 5;
+                else if (expenseRatio > 1) healthScore -= 25;
+                else if (expenseRatio > 0.95) healthScore -= 15;
+                
+                // Fator 2: Taxa de economia (30%)
+                const savingsRate = savings / income;
+                if (savingsRate > 0.2) healthScore += 20;
+                else if (savingsRate > 0.1) healthScore += 10;
+                else if (savingsRate < 0.05) healthScore -= 10;
+                
+                // Fator 3: Proporção de gastos essenciais (30%)
+                const essentialExpenses = expenses.filter(e => 
+                    ['moradia', 'alimentacao', 'transporte', 'saude'].includes(e.category)
+                ).reduce((s, e) => s + e.amount, 0);
+                
+                const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+                const essentialRatio = totalExpenses > 0 ? essentialExpenses / totalExpenses : 0;
+                
+                if (essentialRatio < 0.6) healthScore += 15;
+                else if (essentialRatio < 0.7) healthScore += 5;
+                else if (essentialRatio > 0.8) healthScore -= 10;
+            }
+            
+            healthScore = Math.max(20, Math.min(100, Math.round(healthScore)));
+            
+            // Atualizar interface
+            const healthCircle = document.getElementById('health-circle');
+            const healthTitle = document.getElementById('health-title');
+            const healthDesc = document.getElementById('health-description');
+            
+            healthCircle.textContent = `${healthScore}%`;
+            healthCircle.className = 'health-circle';
+            
+            if (healthScore >= 80) {
+                healthCircle.classList.add('health-excellent');
+                healthTitle.textContent = 'Excelente Saúde Financeira';
+                healthDesc.textContent = 'Parabéns! Você está no caminho certo para a independência financeira.';
+            } else if (healthScore >= 65) {
+                healthCircle.classList.add('health-good');
+                healthTitle.textContent = 'Boa Saúde Financeira';
+                healthDesc.textContent = 'Você está no caminho certo! Economiza bem e tem controle sobre suas despesas.';
+            } else if (healthScore >= 50) {
+                healthCircle.classList.add('health-warning');
+                healthTitle.textContent = 'Saúde Financeira Regular';
+                healthDesc.textContent = 'Cuidado! Alguns ajustes são necessários para melhorar seu controle financeiro.';
+            } else {
+                healthCircle.classList.add('health-danger');
+                healthTitle.textContent = 'Saúde Financeira Crítica';
+                healthDesc.textContent = 'Atenção! Recomendamos revisar urgentemente suas finanças.';
+            }
+            
+            // Atualizar comparativo
+            const previousScore = Math.max(20, healthScore - 7);
+            document.getElementById('previous-health').textContent = `${previousScore}%`;
+            document.getElementById('current-health').textContent = `${healthScore}%`;
+            
+            const scoreChange = healthScore - previousScore;
+            document.getElementById('health-change').textContent = 
+                `${scoreChange >= 0 ? '+' : ''}${scoreChange}% ${scoreChange >= 0 ? 'de melhoria' : 'de piora'}`;
+            
+            const prevMonth = new Date(currentYear, currentMonth - 1, 1);
+            const currMonth = new Date(currentYear, currentMonth, 1);
+            
+            document.getElementById('previous-month-label').textContent = 
+                `${monthNames[prevMonth.getMonth()]} ${prevMonth.getFullYear()}`;
+            document.getElementById('current-month-label').textContent = 
+                `${monthNames[currMonth.getMonth()]} ${currMonth.getFullYear()}`;
+        }
+
+        // Atualizar categorias de contas
+        function updateAccountCategories() {
+            const currentMonthData = getTransactionsForCurrentMonth();
+            const expenses = currentMonthData.filter(t => t.type === 'expense');
+            const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+            
+            // Calcular totais por tipo
+            const essential = expenses.filter(e => 
+                ['moradia', 'alimentacao', 'transporte', 'saude'].includes(e.category)
+            ).reduce((sum, e) => sum + e.amount, 0);
+            
+            const leisure = expenses.filter(e => ['lazer'].includes(e.category))
+                .reduce((sum, e) => sum + e.amount, 0);
+            
+            const recurring = expenses.filter(e => e.recurring)
+                .reduce((sum, e) => sum + e.amount, 0);
+            
+            const investments = currentMonthData.filter(t => t.type === 'investment')
+                .reduce((sum, t) => sum + t.amount, 0);
+            
+            const categories = [
+                { 
+                    name: 'Essenciais', 
+                    amount: essential, 
+                    percentage: totalExpenses > 0 ? Math.round((essential/totalExpenses)*100) : 0, 
+                    type: 'essential' 
+                },
+                { 
+                    name: 'Investimentos', 
+                    amount: investments, 
+                    percentage: Math.round((investments/4850)*100), 
+                    type: 'investment' 
+                },
+                { 
+                    name: 'Recorrentes', 
+                    amount: recurring, 
+                    percentage: totalExpenses > 0 ? Math.round((recurring/totalExpenses)*100) : 0, 
+                    type: 'recurring' 
+                },
+                { 
+                    name: 'Lazer', 
+                    amount: leisure, 
+                    percentage: totalExpenses > 0 ? Math.round((leisure/totalExpenses)*100) : 0, 
+                    type: 'leisure' 
+                }
+            ];
+            
+            let html = '';
+            categories.forEach(cat => {
+                html += `
+                    <div class="account-type-card" onclick="filterByType('${cat.type}')">
+                        <div class="account-type-icon account-type-${cat.type}">
+                            <i class="fas fa-${financialData.categories[cat.type].icon}"></i>
+                        </div>
+                        <div class="account-type-name">${cat.name}</div>
+                        <div class="account-type-value">${formatCurrency(cat.amount)}</div>
+                        <div style="font-size: 12px; color: var(--gray);">
+                            ${cat.percentage}% ${cat.type === 'investment' ? 'da renda' : 'das despesas'}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('account-categories').innerHTML = html;
+        }
+
+        // Atualizar lista de contas recorrentes
+        function updateRecurringList() {
+            const currentMonthData = getTransactionsForCurrentMonth();
+            const recurring = currentMonthData.filter(t => t.masterId || t.installments);
+            
+            let html = '';
+            recurring.forEach(account => {
+                const isParceled = account.installments;
+                const icon = isParceled ? 'mobile-alt' : 
+                    account.category === 'moradia' ? 'home' :
+                    account.category === 'saude' ? 'heartbeat' :
+                    account.category === 'lazer' ? 'film' : 'redo';
+                
+                // Verificar se é uma transação gerada automaticamente
+                const isGenerated = account.isGenerated && !account.isModified;
+                const badge = isGenerated ? '<span class="recurrence-badge"><i class="fas fa-robot"></i> Auto</span>' : '';
+                
+                html += `
+                    <div class="recurring-item" onclick="editTransaction(${account.id})">
+                        <div class="recurring-icon ${isParceled ? 'parceled' : 'fixed'}">
+                            <i class="fas fa-${icon}"></i>
+                        </div>
+                        <div class="recurring-details">
+                            <div class="recurring-title">
+                                ${account.name} ${badge}
+                            </div>
+                            <div class="recurring-info">
+                                ${isParceled ? `Parcela ${account.installments}` : 'PIX recorrente • Mensal'}
+                                ${account.isGenerated ? ' • Gerada automaticamente' : ''}
+                            </div>
+                        </div>
+                        <div class="recurring-due-date">Dia ${account.dueDay}</div>
+                        <div class="recurring-amount expense">- ${formatCurrency(account.amount)}</div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('recurring-list').innerHTML = html;
+        }
+
+        // ==============================
+        // FUNÇÕES UTILITÁRIAS
+        // ==============================
 
         // Obter transações do mês atual
         function getTransactionsForCurrentMonth() {
@@ -2086,6 +2913,43 @@
             const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
             const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
             return getTransactionsForMonth(prevYear, prevMonth);
+        }
+
+        // Formatar moeda
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(value);
+        }
+
+        // Formatar data para exibição
+        function formatDateDisplay(dateString) {
+            const date = new Date(dateString);
+            return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+        }
+
+        // Obter nome da categoria
+        function getCategoryName(category) {
+            const names = {
+                salario: 'Salário',
+                freelance: 'Freelance',
+                investimentos: 'Investimentos',
+                rendimentos: 'Rendimentos',
+                vendas: 'Vendas',
+                alimentacao: 'Alimentação',
+                moradia: 'Moradia',
+                transporte: 'Transporte',
+                lazer: 'Lazer',
+                saude: 'Saúde',
+                educacao: 'Educação',
+                outros: 'Outros',
+                poupanca: 'Poupança',
+                tesouro: 'Tesouro Direto',
+                acoes: 'Ações',
+                fii: 'Fundos Imobiliários'
+            };
+            return names[category] || category;
         }
 
         // Navegar para mês anterior
@@ -2116,14 +2980,6 @@
                 `${monthNames[currentMonth]} ${currentYear}`;
         }
 
-        // Formatar moeda
-        function formatCurrency(value) {
-            return new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL'
-            }).format(value);
-        }
-
         // Salvar no localStorage
         function saveToLocalStorage() {
             localStorage.setItem('financialData', JSON.stringify({
@@ -2136,6 +2992,22 @@
             }));
         }
 
+        // Mostrar notificação toast
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+            
+            toastMessage.textContent = message;
+            toast.className = 'toast';
+            toast.classList.add(type === 'error' ? 'error' : 
+                               type === 'warning' ? 'warning' : '');
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
         // Funções que precisam ser globais para onclick
         window.showDayDetails = showDayDetails;
         window.goToMonth = goToMonth;
@@ -2144,10 +3016,6 @@
         window.filterByType = filterByType;
         window.editRecurrenceMaster = editRecurrenceMaster;
         window.deleteRecurrenceMasterConfirm = deleteRecurrenceMasterConfirm;
-
-        // Nota: As outras funções (saveTransaction, showTransactionModal, etc.) 
-        // são as mesmas do código anterior e precisam ser mantidas
-        // Estou resumindo por questão de espaço, mas todas devem ser incluídas
     </script>
 </body>
 </html>
