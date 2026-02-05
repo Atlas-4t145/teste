@@ -991,7 +991,7 @@
                 </div>
                 <div class="card-change positive" id="income-change">
                     <i class="fas fa-arrow-up"></i>
-                    <span>Carregando...</span>
+                    <span>Nenhuma receita</span>
                 </div>
             </div>
             
@@ -1007,7 +1007,7 @@
                 </div>
                 <div class="card-change negative" id="expense-change">
                     <i class="fas fa-arrow-down"></i>
-                    <span>Carregando...</span>
+                    <span>Nenhuma despesa</span>
                 </div>
             </div>
             
@@ -1023,7 +1023,7 @@
                 </div>
                 <div class="card-change positive" id="balance-change">
                     <i class="fas fa-arrow-up"></i>
-                    <span>Carregando...</span>
+                    <span>Saldo zerado</span>
                 </div>
             </div>
             
@@ -1039,7 +1039,7 @@
                 </div>
                 <div class="card-change positive" id="savings-change">
                     <i class="fas fa-arrow-up"></i>
-                    <span>Carregando...</span>
+                    <span>Comece a economizar</span>
                 </div>
             </div>
         </div>
@@ -1056,10 +1056,14 @@
                     </h3>
                     
                     <div class="section-subtitle">Categorias que mais consomem seu dinheiro:</div>
-                    <div id="offender-categories"></div>
+                    <div id="offender-categories">
+                        <p style="color: var(--gray); text-align: center; padding: 20px;">Nenhuma conta registrada ainda</p>
+                    </div>
                     
                     <div class="section-subtitle" style="margin-top: 25px;">Contas individuais mais caras:</div>
-                    <div id="offender-accounts"></div>
+                    <div id="offender-accounts">
+                        <p style="color: var(--gray); text-align: center; padding: 20px;">Adicione suas primeiras transações</p>
+                    </div>
                 </div>
 
                 <!-- Saúde Financeira -->
@@ -1070,10 +1074,10 @@
                     </h3>
                     
                     <div class="health-indicator">
-                        <div class="health-circle" id="health-circle">0%</div>
+                        <div class="health-circle health-excellent" id="health-circle">0%</div>
                         <div class="health-details">
-                            <div class="health-title" id="health-title">Carregando...</div>
-                            <div class="health-description" id="health-description">Calculando sua saúde financeira...</div>
+                            <div class="health-title" id="health-title">Comece agora</div>
+                            <div class="health-description" id="health-description">Adicione suas receitas e despesas para começar</div>
                         </div>
                     </div>
                     
@@ -1087,7 +1091,7 @@
                         <div style="background-color: var(--light); padding: 15px; border-radius: 12px;">
                             <div style="font-size: 14px; color: var(--gray);" id="current-month-label">Junho 2023</div>
                             <div style="font-size: 20px; font-weight: 700; color: var(--primary);" id="current-health">0%</div>
-                            <div style="font-size: 12px; color: var(--gray);" id="health-change">+0% de melhoria</div>
+                            <div style="font-size: 12px; color: var(--gray);" id="health-change">Inicie seu controle</div>
                         </div>
                     </div>
                     
@@ -1109,7 +1113,40 @@
                         <span style="font-size: 14px; color: var(--gray);">Metrificação por tipo</span>
                     </h3>
                     
-                    <div class="account-types" id="account-categories"></div>
+                    <div class="account-types" id="account-categories">
+                        <div class="account-type-card">
+                            <div class="account-type-icon account-type-essential">
+                                <i class="fas fa-home"></i>
+                            </div>
+                            <div class="account-type-name">Essenciais</div>
+                            <div class="account-type-value">R$ 0,00</div>
+                            <div style="font-size: 12px; color: var(--gray);">0% das despesas</div>
+                        </div>
+                        <div class="account-type-card">
+                            <div class="account-type-icon account-type-investment">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <div class="account-type-name">Investimentos</div>
+                            <div class="account-type-value">R$ 0,00</div>
+                            <div style="font-size: 12px; color: var(--gray);">0% da renda</div>
+                        </div>
+                        <div class="account-type-card">
+                            <div class="account-type-icon account-type-recurring">
+                                <i class="fas fa-redo"></i>
+                            </div>
+                            <div class="account-type-name">Recorrentes</div>
+                            <div class="account-type-value">R$ 0,00</div>
+                            <div style="font-size: 12px; color: var(--gray);">0% das despesas</div>
+                        </div>
+                        <div class="account-type-card">
+                            <div class="account-type-icon account-type-leisure">
+                                <i class="fas fa-film"></i>
+                            </div>
+                            <div class="account-type-name">Lazer</div>
+                            <div class="account-type-value">R$ 0,00</div>
+                            <div style="font-size: 12px; color: var(--gray);">0% das despesas</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1125,7 +1162,12 @@
                         </button>
                     </h3>
                     
-                    <div class="recurring-list" id="recurring-list"></div>
+                    <div class="recurring-list" id="recurring-list">
+                        <p style="color: var(--gray); text-align: center; padding: 40px 20px;">
+                            Nenhuma recorrência cadastrada<br>
+                            <small>Clique em "Nova Transação" para começar</small>
+                        </p>
+                    </div>
                 </div>
 
                 <!-- Calendário de Vencimentos -->
@@ -1135,7 +1177,9 @@
                         <span style="font-size: 14px; color: var(--gray);" id="calendar-month">Junho 2023</span>
                     </h3>
                     
-                    <div class="calendar-grid" id="calendar-grid"></div>
+                    <div class="calendar-grid" id="calendar-grid">
+                        <!-- Calendário será gerado aqui -->
+                    </div>
                     
                     <!-- Legenda do Calendário -->
                     <div class="calendar-legend">
@@ -1294,7 +1338,10 @@
             </div>
             
             <div id="recurrence-list">
-                <p>Carregando recorrências...</p>
+                <p style="text-align: center; color: var(--gray); padding: 40px 20px;">
+                    Nenhuma recorrência cadastrada<br>
+                    <small>Crie recorrências ao adicionar transações</small>
+                </p>
             </div>
             
             <div class="btn-group" style="margin-top: 20px;">
@@ -1343,7 +1390,7 @@
 
         // Configurações iniciais
         const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
-                          "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+                          "Jullio", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
         
         let currentDate = new Date();
         let currentMonth = currentDate.getMonth();
@@ -1351,19 +1398,19 @@
         let editingTransactionId = null;
         let hasShownNotification = false;
 
-        // Estrutura de dados
+        // Estrutura de dados - TOTALMENTE VAZIA
         const financialData = {
             transactions: [],
-            totalSavings: 10000,
-            savingsGoal: 20000,
-            monthlyBudget: 4000,
+            totalSavings: 0,
+            savingsGoal: 0,
+            monthlyBudget: 0,
             savingsRate: 0.3,
             recurrenceMasters: [],
             categories: {
-                essential: { budget: 2000, color: '#ef4444', icon: 'home' },
-                investment: { budget: 1000, color: '#10b981', icon: 'chart-line' },
-                recurring: { budget: 1500, color: '#8b5cf6', icon: 'redo' },
-                leisure: { budget: 500, color: '#f59e0b', icon: 'film' }
+                essential: { budget: 0, color: '#ef4444', icon: 'home' },
+                investment: { budget: 0, color: '#10b981', icon: 'chart-line' },
+                recurring: { budget: 0, color: '#8b5cf6', icon: 'redo' },
+                leisure: { budget: 0, color: '#f59e0b', icon: 'film' }
             }
         };
 
@@ -1371,13 +1418,8 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializeApp();
             setupEventListeners();
-            loadEssentialData();
             updateDashboard();
-            
-            // Mostrar notificação após um breve delay
-            setTimeout(() => {
-                checkAndShowNotifications();
-            }, 1000);
+            generateCalendar();
         });
 
         // Inicializar aplicação
@@ -1388,16 +1430,10 @@
                 const parsed = JSON.parse(savedData);
                 financialData.transactions = parsed.transactions || [];
                 financialData.recurrenceMasters = parsed.recurrenceMasters || [];
-                financialData.totalSavings = parsed.totalSavings || 10000;
-                financialData.savingsGoal = parsed.savingsGoal || 20000;
-                financialData.monthlyBudget = parsed.monthlyBudget || 4000;
+                financialData.totalSavings = parsed.totalSavings || 0;
+                financialData.savingsGoal = parsed.savingsGoal || 0;
+                financialData.monthlyBudget = parsed.monthlyBudget || 0;
                 financialData.savingsRate = parsed.savingsRate || 0.3;
-            }
-            
-            // Carregar estado das notificações
-            const notificationState = localStorage.getItem('notificationShown');
-            if (notificationState) {
-                hasShownNotification = JSON.parse(notificationState);
             }
             
             // Configurar data atual nos campos
@@ -1407,7 +1443,7 @@
             // Configurar mês atual
             updateMonthDisplay();
             
-            // Gerar transações recorrentes
+            // Gerar transações recorrentes se houver
             generateRecurringTransactions();
         }
 
@@ -1497,63 +1533,18 @@
             });
         }
 
-        // Carregar dados essenciais
-        function loadEssentialData() {
-            // Apenas criar recorrências mestre de exemplo se não existirem
-            if (financialData.recurrenceMasters.length === 0) {
-                const sampleRecurrences = [
-                    {
-                        id: 1,
-                        masterId: 'rec_001',
-                        name: "Internet Fibra",
-                        type: "expense",
-                        category: "moradia",
-                        amount: 120,
-                        dueDay: 5,
-                        recurrenceType: "fixed",
-                        startDate: new Date().toISOString().split('T')[0],
-                        endDate: null,
-                        notes: "PIX recorrente mensal"
-                    },
-                    {
-                        id: 2,
-                        masterId: 'rec_002',
-                        name: "Celular Novo",
-                        type: "expense",
-                        category: "lazer",
-                        amount: 185,
-                        dueDay: 15,
-                        recurrenceType: "parceled",
-                        startDate: new Date().toISOString().split('T')[0],
-                        endDate: null,
-                        totalInstallments: 12,
-                        currentInstallment: 1,
-                        notes: "Compra parcelada em 12x"
-                    }
-                ];
-                
-                financialData.recurrenceMasters = sampleRecurrences;
-                generateRecurringTransactions();
-                saveToLocalStorage();
-            }
-        }
-
         // ==============================
         // SISTEMA DE RECORRÊNCIA COMPLETO
         // ==============================
 
         // Gerar TODAS as parcelas futuras com base nas recorrências
         function generateRecurringTransactions() {
-            console.log("Gerando transações recorrentes...");
-            
             // Data limite: próximo ano
             const endDate = new Date();
             endDate.setFullYear(endDate.getFullYear() + 1);
             
             // Para cada recorrência mestre
             financialData.recurrenceMasters.forEach(master => {
-                console.log(`Processando recorrência: ${master.name}`);
-                
                 const startDate = new Date(master.startDate);
                 const masterEndDate = master.endDate ? new Date(master.endDate) : endDate;
                 
@@ -1613,8 +1604,6 @@
                                 isModified: false,
                                 isFuture: parcelDate > new Date()
                             });
-                            
-                            console.log(`Criada transação para ${formattedDate}: ${master.name} ${installmentsText}`);
                             
                             if (master.recurrenceType === 'parceled') {
                                 parcelNumber++;
@@ -1855,7 +1844,7 @@
             const startingDay = firstDay.getDay();
             const totalDays = lastDay.getDate();
             
-            // Obter transações do mês atual (incluindo futuras)
+            // Obter transações do mês atual
             const currentMonthTransactions = getTransactionsForCurrentMonth();
             
             // Agrupar vencimentos por dia
@@ -1934,76 +1923,6 @@
             document.getElementById('today-total').textContent = `Total: ${formatCurrency(todayTotal)}`;
             document.getElementById('soon-total').textContent = `Total: ${formatCurrency(soonTotal)}`;
             document.getElementById('calendar-month').textContent = `${monthNames[currentMonth]} ${currentYear}`;
-            
-            // Adicionar preview dos próximos meses
-            addNextMonthsPreview();
-        }
-
-        // Adicionar preview dos próximos meses
-        function addNextMonthsPreview() {
-            const nextMonthsContainer = document.querySelector('.calendar-legend');
-            if (!nextMonthsContainer) return;
-            
-            // Verificar se já existe a seção de próximos meses
-            let existingSection = document.getElementById('next-months-preview');
-            if (existingSection) {
-                existingSection.remove();
-            }
-            
-            // Calcular totais dos próximos 3 meses
-            const nextMonthsTotals = {};
-            
-            for (let i = 1; i <= 3; i++) {
-                const nextMonth = new Date(currentYear, currentMonth + i, 1);
-                const monthKey = `${nextMonth.getFullYear()}-${nextMonth.getMonth()}`;
-                nextMonthsTotals[monthKey] = 0;
-                
-                // Obter transações do próximo mês
-                const nextMonthTransactions = getTransactionsForMonth(nextMonth.getFullYear(), nextMonth.getMonth());
-                const total = nextMonthTransactions
-                    .filter(t => t.type === 'expense')
-                    .reduce((sum, t) => sum + t.amount, 0);
-                
-                nextMonthsTotals[monthKey] = total;
-            }
-            
-            // Criar seção de preview
-            const previewSection = document.createElement('div');
-            previewSection.id = 'next-months-preview';
-            previewSection.style.marginTop = '20px';
-            previewSection.style.paddingTop = '15px';
-            previewSection.style.borderTop = '1px solid var(--gray-light)';
-            
-            let previewHtml = `
-                <div style="font-size: 14px; color: var(--gray); margin-bottom: 10px; font-weight: 600;">
-                    <i class="fas fa-calendar-plus" style="margin-right: 8px;"></i>
-                    Próximos meses:
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-            `;
-            
-            Object.keys(nextMonthsTotals).forEach((monthKey, index) => {
-                const [year, month] = monthKey.split('-').map(Number);
-                const monthName = monthNames[month];
-                const total = nextMonthsTotals[monthKey];
-                
-                previewHtml += `
-                    <div style="text-align: center; background-color: ${total > 0 ? 'rgba(245, 158, 11, 0.1)' : 'var(--light)'}; 
-                         padding: 10px; border-radius: 8px; cursor: pointer; transition: var(--transition);"
-                         onclick="goToMonth(${year}, ${month})">
-                        <div style="font-size: 12px; color: var(--gray);">${monthName.substring(0, 3)}/${year.toString().substring(2)}</div>
-                        <div style="font-weight: 700; color: ${total > 0 ? 'var(--warning)' : 'var(--gray)'}; font-size: 14px; margin-top: 5px;">
-                            ${formatCurrency(total)}
-                        </div>
-                    </div>
-                `;
-            });
-            
-            previewHtml += '</div>';
-            previewSection.innerHTML = previewHtml;
-            
-            // Adicionar após a legenda
-            nextMonthsContainer.parentNode.insertBefore(previewSection, nextMonthsContainer.nextSibling);
         }
 
         // Mostrar detalhes de um dia específico
@@ -2084,6 +2003,7 @@
             currentMonth = month;
             updateMonthDisplay();
             updateDashboard();
+            generateCalendar();
         }
 
         // Obter transações para um mês específico
@@ -2315,6 +2235,8 @@
             
             saveToLocalStorage();
             updateDashboard();
+            generateCalendar();
+            checkAndShowNotifications();
             hideTransactionModal();
             
             showToast(id ? 'Transação atualizada com sucesso!' : 'Transação salva com sucesso!');
@@ -2345,6 +2267,7 @@
                 
                 saveToLocalStorage();
                 updateDashboard();
+                generateCalendar();
                 hideTransactionModal();
             }
         }
@@ -2475,7 +2398,6 @@
             updateHealthScore();
             updateAccountCategories();
             updateRecurringList();
-            generateCalendar();
         }
 
         // Atualizar cards de visão geral
@@ -2579,6 +2501,14 @@
             const currentMonthData = getTransactionsForCurrentMonth();
             const expenses = currentMonthData.filter(t => t.type === 'expense');
             
+            if (expenses.length === 0) {
+                document.getElementById('offender-categories').innerHTML = 
+                    '<p style="color: var(--gray); text-align: center; padding: 20px;">Nenhuma conta registrada ainda</p>';
+                document.getElementById('offender-accounts').innerHTML = 
+                    '<p style="color: var(--gray); text-align: center; padding: 20px;">Adicione suas primeiras transações</p>';
+                return;
+            }
+            
             // Agrupar por categoria
             const categories = {};
             expenses.forEach(expense => {
@@ -2600,7 +2530,6 @@
                 const categoryName = getCategoryName(category);
                 const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
                 const percentage = totalExpenses > 0 ? Math.round((data.total / totalExpenses) * 100) : 0;
-                const overBudget = Math.round(Math.random() * 20 + 10); // Simulado
                 
                 categoriesHtml += `
                     <div class="offender-card" onclick="filterByCategory('${category}')">
@@ -2609,11 +2538,11 @@
                             <div class="offender-amount">${formatCurrency(data.total)}</div>
                         </div>
                         <div class="offender-details">
-                            <div>${overBudget}% acima do orçamento</div>
-                            <div>${percentage}% das despesas totais</div>
+                            <div>${data.count} conta(s)</div>
+                            <div>${percentage}% das despesas</div>
                         </div>
                         <div class="offender-progress">
-                            <div class="offender-progress-bar" style="width: ${Math.min(percentage + 20, 100)}%"></div>
+                            <div class="offender-progress-bar" style="width: ${Math.min(percentage + 10, 100)}%"></div>
                         </div>
                     </div>
                 `;
@@ -2656,6 +2585,17 @@
                 .reduce((sum, t) => sum + t.amount, 0);
             const savings = currentMonthData.filter(t => t.type === 'investment')
                 .reduce((sum, t) => sum + t.amount, 0);
+            
+            // Se não há transações
+            if (income === 0 && expenses.length === 0) {
+                document.getElementById('health-circle').textContent = '0%';
+                document.getElementById('health-title').textContent = 'Comece agora';
+                document.getElementById('health-description').textContent = 'Adicione suas receitas e despesas para começar';
+                document.getElementById('previous-health').textContent = '0%';
+                document.getElementById('current-health').textContent = '0%';
+                document.getElementById('health-change').textContent = 'Inicie seu controle';
+                return;
+            }
             
             // Calcular índice de saúde
             let healthScore = 70; // Base
@@ -2763,7 +2703,7 @@
                 { 
                     name: 'Investimentos', 
                     amount: investments, 
-                    percentage: Math.round((investments/4850)*100), 
+                    percentage: investments > 0 ? 100 : 0, 
                     type: 'investment' 
                 },
                 { 
@@ -2785,7 +2725,7 @@
                 html += `
                     <div class="account-type-card" onclick="filterByType('${cat.type}')">
                         <div class="account-type-icon account-type-${cat.type}">
-                            <i class="fas fa-${financialData.categories[cat.type].icon}"></i>
+                            <i class="fas fa-${cat.type === 'essential' ? 'home' : cat.type === 'investment' ? 'chart-line' : cat.type === 'recurring' ? 'redo' : 'film'}"></i>
                         </div>
                         <div class="account-type-name">${cat.name}</div>
                         <div class="account-type-value">${formatCurrency(cat.amount)}</div>
@@ -2803,6 +2743,12 @@
         function updateRecurringList() {
             const currentMonthData = getTransactionsForCurrentMonth();
             const recurring = currentMonthData.filter(t => t.masterId);
+            
+            if (recurring.length === 0) {
+                document.getElementById('recurring-list').innerHTML = 
+                    '<p style="color: var(--gray); text-align: center; padding: 40px 20px;">Nenhuma recorrência cadastrada<br><small>Clique em "Nova Transação" para começar</small></p>';
+                return;
+            }
             
             let html = '';
             recurring.forEach(account => {
@@ -2901,6 +2847,7 @@
             }
             updateMonthDisplay();
             updateDashboard();
+            generateCalendar();
         }
 
         // Navegar para próximo mês
@@ -2912,6 +2859,7 @@
             }
             updateMonthDisplay();
             updateDashboard();
+            generateCalendar();
         }
 
         // Atualizar exibição do mês
@@ -2960,7 +2908,6 @@
         // Função para filtrar por categoria
         function filterByCategory(category) {
             alert(`Filtrando por categoria: ${getCategoryName(category)}`);
-            // Implementação futura
         }
 
         // Função para filtrar por tipo
@@ -2972,7 +2919,6 @@
                 leisure: 'Lazer'
             };
             alert(`Filtrando por tipo: ${typeNames[type]}`);
-            // Implementação futura
         }
 
         // Funções globais
