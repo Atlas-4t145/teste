@@ -1071,13 +1071,8 @@
                             <option value="">Selecione uma categoria</option>
                             <option value="salario">Salário</option>
                             <option value="freelance">Freelance</option>
-                            <option value="investimentos">Investimentos</option>
-                            <option value="alimentacao">Alimentação</option>
-                            <option value="moradia">Moradia</option>
-                            <option value="transporte">Transporte</option>
-                            <option value="lazer">Lazer</option>
-                            <option value="saude">Saúde</option>
-                            <option value="educacao">Educação</option>
+                            <option value="investimentos">Rendimentos de Investimentos</option>
+                            <option value="vendas">Vendas</option>
                             <option value="outros">Outros</option>
                         </select>
                     </div>
@@ -1144,11 +1139,13 @@
         let currentYear = currentDate.getFullYear();
         let editingTransactionId = null;
 
-        // Estrutura de dados
+        // Estrutura de dados corrigida
         const financialData = {
             transactions: [],
-            savingsGoal: 10000,
+            totalSavings: 10000, // CORREÇÃO: Valor inicial das economias (acumulado histórico)
+            savingsGoal: 20000,
             monthlyBudget: 4000,
+            savingsRate: 0.3, // 30% do saldo positivo vai para economias
             categories: {
                 essential: { budget: 2000, color: '#ef4444', icon: 'home' },
                 investment: { budget: 1000, color: '#10b981', icon: 'chart-line' },
@@ -1172,8 +1169,10 @@
             if (savedData) {
                 const parsed = JSON.parse(savedData);
                 financialData.transactions = parsed.transactions || [];
-                financialData.savingsGoal = parsed.savingsGoal || 10000;
+                financialData.totalSavings = parsed.totalSavings || 10000; // CORREÇÃO
+                financialData.savingsGoal = parsed.savingsGoal || 20000;
                 financialData.monthlyBudget = parsed.monthlyBudget || 4000;
+                financialData.savingsRate = parsed.savingsRate || 0.3;
             }
             
             // Configurar data atual nos campos
@@ -1260,7 +1259,8 @@
                     { id: 9, name: "Celular Novo", type: "expense", category: "lazer", amount: 185, date: "2023-06-15", dueDay: 15, installments: "8/12" },
                     { id: 10, name: "Sofá Novo", type: "expense", category: "moradia", amount: 210, date: "2023-06-20", dueDay: 20, installments: "3/10" },
                     { id: 11, name: "Investimento Mensal", type: "investment", category: "investimentos", amount: 1000, date: "2023-06-01", dueDay: 1 },
-                    { id: 12, name: "Freelance", type: "income", category: "freelance", amount: 800, date: "2023-06-18" }
+                    { id: 12, name: "Freelance", type: "income", category: "freelance", amount: 800, date: "2023-06-18" },
+                    { id: 13, name: "Economia Automática", type: "investment", category: "poupanca", amount: 500, date: "2023-06-30" }
                 ];
                 
                 financialData.transactions = sampleTransactions;
@@ -1282,51 +1282,103 @@
             updateCalendar();
         }
 
-        // Atualizar cards de visão geral
+        // Atualizar cards de visão geral - VERSÃO CORRIGIDA
         function updateOverviewCards() {
             const currentMonthData = getTransactionsForCurrentMonth();
             const previousMonthData = getTransactionsForPreviousMonth();
             
-            // Calcular totais
+            // Calcular totais do mês atual
             const currentIncome = currentMonthData.filter(t => t.type === 'income')
                 .reduce((sum, t) => sum + t.amount, 0);
             const currentExpense = currentMonthData.filter(t => t.type === 'expense')
                 .reduce((sum, t) => sum + t.amount, 0);
             const currentBalance = currentIncome - currentExpense;
-            const currentSavings = currentMonthData.filter(t => t.type === 'investment')
-                .reduce((sum, t) => sum + t.amount, 0) + 10000; // + reserva de emergência
             
+            // CORREÇÃO: Calcular economias de forma realista
+            const currentInvestments = currentMonthData.filter(t => t.type === 'investment')
+                .reduce((sum, t) => sum + t.amount, 0);
+            
+            // Atualizar total de economias
+            const monthlySavingsContribution = currentBalance > 0 ? 
+                currentBalance * financialData.savingsRate : 0;
+            
+            // Adicionar contribuição mensal ao total
+            financialData.totalSavings += monthlySavingsContribution + currentInvestments;
+            
+            // Arredondar para 2 casas decimais
+            financialData.totalSavings = Math.round(financialData.totalSavings * 100) / 100;
+            
+            // Calcular totais do mês anterior
             const previousIncome = previousMonthData.filter(t => t.type === 'income')
                 .reduce((sum, t) => sum + t.amount, 0);
             const previousExpense = previousMonthData.filter(t => t.type === 'expense')
                 .reduce((sum, t) => sum + t.amount, 0);
             const previousBalance = previousIncome - previousExpense;
             
+            // Salvar dados atualizados
+            saveToLocalStorage();
+            
             // Atualizar cards
             document.getElementById('total-income').textContent = formatCurrency(currentIncome);
             document.getElementById('total-expense').textContent = formatCurrency(currentExpense);
             document.getElementById('total-balance').textContent = formatCurrency(currentBalance);
-            document.getElementById('total-savings').textContent = formatCurrency(currentSavings);
+            document.getElementById('total-savings').textContent = formatCurrency(financialData.totalSavings);
             
             // Atualizar mudanças
             const incomeChange = currentIncome - previousIncome;
             const expenseChange = currentExpense - previousExpense;
             const balanceChange = currentBalance - previousBalance;
+            const savingsAddedThisMonth = monthlySavingsContribution + currentInvestments;
             
-            document.getElementById('income-change').innerHTML = incomeChange >= 0 
-                ? `<i class="fas fa-arrow-up"></i><span>${formatCurrency(Math.abs(incomeChange))} a ${incomeChange >= 0 ? 'mais' : 'menos'} que mês passado</span>`
-                : `<i class="fas fa-arrow-down"></i><span>${formatCurrency(Math.abs(incomeChange))} a menos que mês passado</span>`;
+            // Atualizar texto de mudança das receitas
+            const incomeChangeElement = document.getElementById('income-change');
+            if (incomeChange > 0) {
+                incomeChangeElement.innerHTML = `<i class="fas fa-arrow-up"></i><span>${formatCurrency(Math.abs(incomeChange))} a mais que mês passado</span>`;
+                incomeChangeElement.className = 'card-change positive';
+            } else if (incomeChange < 0) {
+                incomeChangeElement.innerHTML = `<i class="fas fa-arrow-down"></i><span>${formatCurrency(Math.abs(incomeChange))} a menos que mês passado</span>`;
+                incomeChangeElement.className = 'card-change negative';
+            } else {
+                incomeChangeElement.innerHTML = `<i class="fas fa-equals"></i><span>Mesmo valor que mês passado</span>`;
+                incomeChangeElement.className = 'card-change';
+            }
             
-            document.getElementById('expense-change').innerHTML = expenseChange <= 0 
-                ? `<i class="fas fa-arrow-down"></i><span>${formatCurrency(Math.abs(expenseChange))} a menos que mês passado</span>`
-                : `<i class="fas fa-arrow-up"></i><span>${formatCurrency(Math.abs(expenseChange))} a mais que mês passado</span>`;
+            // Atualizar texto de mudança das despesas
+            const expenseChangeElement = document.getElementById('expense-change');
+            if (expenseChange < 0) {
+                expenseChangeElement.innerHTML = `<i class="fas fa-arrow-down"></i><span>${formatCurrency(Math.abs(expenseChange))} a menos que mês passado</span>`;
+                expenseChangeElement.className = 'card-change positive';
+            } else if (expenseChange > 0) {
+                expenseChangeElement.innerHTML = `<i class="fas fa-arrow-up"></i><span>${formatCurrency(Math.abs(expenseChange))} a mais que mês passado</span>`;
+                expenseChangeElement.className = 'card-change negative';
+            } else {
+                expenseChangeElement.innerHTML = `<i class="fas fa-equals"></i><span>Mesmo valor que mês passado</span>`;
+                expenseChangeElement.className = 'card-change';
+            }
             
-            document.getElementById('balance-change').innerHTML = balanceChange >= 0 
-                ? `<i class="fas fa-arrow-up"></i><span>${Math.round((currentBalance/currentIncome)*100)}% da sua renda</span>`
-                : `<i class="fas fa-arrow-down"></i><span>${Math.round((currentBalance/currentIncome)*100)}% da sua renda</span>`;
+            // Atualizar texto do saldo
+            const balanceChangeElement = document.getElementById('balance-change');
+            if (currentBalance > 0) {
+                const percentage = currentIncome > 0 ? Math.round((currentBalance/currentIncome)*100) : 0;
+                balanceChangeElement.innerHTML = `<i class="fas fa-arrow-up"></i><span>${percentage}% da sua renda</span>`;
+                balanceChangeElement.className = 'card-change positive';
+            } else if (currentBalance < 0) {
+                balanceChangeElement.innerHTML = `<i class="fas fa-arrow-down"></i><span>Déficit de ${formatCurrency(Math.abs(currentBalance))}</span>`;
+                balanceChangeElement.className = 'card-change negative';
+            } else {
+                balanceChangeElement.innerHTML = `<i class="fas fa-equals"></i><span>Saldo zerado</span>`;
+                balanceChangeElement.className = 'card-change';
+            }
             
-            document.getElementById('savings-change').innerHTML = 
-                `<i class="fas fa-arrow-up"></i><span>${formatCurrency(currentBalance)} este mês</span>`;
+            // Atualizar texto das economias
+            const savingsChangeElement = document.getElementById('savings-change');
+            if (savingsAddedThisMonth > 0) {
+                savingsChangeElement.innerHTML = `<i class="fas fa-arrow-up"></i><span>${formatCurrency(savingsAddedThisMonth)} adicionados este mês</span>`;
+                savingsChangeElement.className = 'card-change positive';
+            } else {
+                savingsChangeElement.innerHTML = `<i class="fas fa-arrow-right"></i><span>Sem aportes este mês</span>`;
+                savingsChangeElement.className = 'card-change';
+            }
         }
 
         // Atualizar contas ofensoras
@@ -1353,7 +1405,8 @@
             let categoriesHtml = '';
             sortedCategories.forEach(([category, data], index) => {
                 const categoryName = getCategoryName(category);
-                const percentage = Math.round((data.total / expenses.reduce((s, e) => s + e.amount, 0)) * 100);
+                const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+                const percentage = totalExpenses > 0 ? Math.round((data.total / totalExpenses) * 100) : 0;
                 const overBudget = Math.round(Math.random() * 20 + 10); // Simulado
                 
                 categoriesHtml += `
@@ -1411,40 +1464,55 @@
             const savings = currentMonthData.filter(t => t.type === 'investment')
                 .reduce((sum, t) => sum + t.amount, 0);
             
-            // Calcular índice de saúde (simplificado)
-            const expenseRatio = expenses.reduce((s, e) => s + e.amount, 0) / income;
-            const savingsRatio = savings / income;
-            const essentialRatio = expenses.filter(e => ['moradia', 'alimentacao', 'transporte', 'saude'].includes(e.category))
-                .reduce((s, e) => s + e.amount, 0) / expenses.reduce((s, e) => s + e.amount, 0);
+            // Calcular índice de saúde
+            let healthScore = 70; // Base
             
-            let healthScore = 100;
-            if (expenseRatio > 0.8) healthScore -= 30;
-            else if (expenseRatio > 0.6) healthScore -= 15;
+            if (income > 0) {
+                // Fator 1: Razão despesa/receita (40%)
+                const expenseRatio = expenses.reduce((s, e) => s + e.amount, 0) / income;
+                if (expenseRatio < 0.7) healthScore += 15;
+                else if (expenseRatio < 0.85) healthScore += 5;
+                else if (expenseRatio > 1) healthScore -= 25;
+                else if (expenseRatio > 0.95) healthScore -= 15;
+                
+                // Fator 2: Taxa de economia (30%)
+                const savingsRate = savings / income;
+                if (savingsRate > 0.2) healthScore += 20;
+                else if (savingsRate > 0.1) healthScore += 10;
+                else if (savingsRate < 0.05) healthScore -= 10;
+                
+                // Fator 3: Proporção de gastos essenciais (30%)
+                const essentialExpenses = expenses.filter(e => 
+                    ['moradia', 'alimentacao', 'transporte', 'saude'].includes(e.category)
+                ).reduce((s, e) => s + e.amount, 0);
+                
+                const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+                const essentialRatio = totalExpenses > 0 ? essentialExpenses / totalExpenses : 0;
+                
+                if (essentialRatio < 0.6) healthScore += 15;
+                else if (essentialRatio < 0.7) healthScore += 5;
+                else if (essentialRatio > 0.8) healthScore -= 10;
+            }
             
-            if (savingsRatio < 0.1) healthScore -= 20;
-            else if (savingsRatio < 0.2) healthScore -= 10;
-            
-            if (essentialRatio > 0.7) healthScore -= 10;
-            
-            healthScore = Math.max(20, Math.min(100, healthScore));
+            healthScore = Math.max(20, Math.min(100, Math.round(healthScore)));
             
             // Atualizar interface
             const healthCircle = document.getElementById('health-circle');
             const healthTitle = document.getElementById('health-title');
             const healthDesc = document.getElementById('health-description');
             
-            healthCircle.textContent = `${Math.round(healthScore)}%`;
+            healthCircle.textContent = `${healthScore}%`;
             healthCircle.className = 'health-circle';
             
             if (healthScore >= 80) {
                 healthCircle.classList.add('health-excellent');
                 healthTitle.textContent = 'Excelente Saúde Financeira';
                 healthDesc.textContent = 'Parabéns! Você está no caminho certo para a independência financeira.';
-            } else if (healthScore >= 60) {
+            } else if (healthScore >= 65) {
                 healthCircle.classList.add('health-good');
                 healthTitle.textContent = 'Boa Saúde Financeira';
                 healthDesc.textContent = 'Você está no caminho certo! Economiza bem e tem controle sobre suas despesas.';
-            } else if (healthScore >= 40) {
+            } else if (healthScore >= 50) {
                 healthCircle.classList.add('health-warning');
                 healthTitle.textContent = 'Saúde Financeira Regular';
                 healthDesc.textContent = 'Cuidado! Alguns ajustes são necessários para melhorar seu controle financeiro.';
@@ -1457,14 +1525,19 @@
             // Atualizar comparativo
             const previousScore = Math.max(20, healthScore - 7);
             document.getElementById('previous-health').textContent = `${previousScore}%`;
-            document.getElementById('current-health').textContent = `${Math.round(healthScore)}%`;
-            document.getElementById('health-change').textContent = `+${Math.round(healthScore - previousScore)}% de melhoria`;
+            document.getElementById('current-health').textContent = `${healthScore}%`;
+            
+            const scoreChange = healthScore - previousScore;
+            document.getElementById('health-change').textContent = 
+                `${scoreChange >= 0 ? '+' : ''}${scoreChange}% ${scoreChange >= 0 ? 'de melhoria' : 'de piora'}`;
             
             const prevMonth = new Date(currentYear, currentMonth - 1, 1);
             const currMonth = new Date(currentYear, currentMonth, 1);
             
-            document.getElementById('previous-month-label').textContent = `${monthNames[prevMonth.getMonth()]} ${prevMonth.getFullYear()}`;
-            document.getElementById('current-month-label').textContent = `${monthNames[currMonth.getMonth()]} ${currMonth.getFullYear()}`;
+            document.getElementById('previous-month-label').textContent = 
+                `${monthNames[prevMonth.getMonth()]} ${prevMonth.getFullYear()}`;
+            document.getElementById('current-month-label').textContent = 
+                `${monthNames[currMonth.getMonth()]} ${currMonth.getFullYear()}`;
         }
 
         // Atualizar categorias de contas
@@ -1474,20 +1547,44 @@
             const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
             
             // Calcular totais por tipo
-            const essential = expenses.filter(e => ['moradia', 'alimentacao', 'transporte', 'saude'].includes(e.category))
-                .reduce((sum, e) => sum + e.amount, 0);
+            const essential = expenses.filter(e => 
+                ['moradia', 'alimentacao', 'transporte', 'saude'].includes(e.category)
+            ).reduce((sum, e) => sum + e.amount, 0);
+            
             const leisure = expenses.filter(e => ['lazer'].includes(e.category))
                 .reduce((sum, e) => sum + e.amount, 0);
+            
             const recurring = expenses.filter(e => e.recurring)
                 .reduce((sum, e) => sum + e.amount, 0);
+            
             const investments = currentMonthData.filter(t => t.type === 'investment')
                 .reduce((sum, t) => sum + t.amount, 0);
             
             const categories = [
-                { name: 'Essenciais', amount: essential, percentage: totalExpenses > 0 ? Math.round((essential/totalExpenses)*100) : 0, type: 'essential' },
-                { name: 'Investimentos', amount: investments, percentage: Math.round((investments/4850)*100), type: 'investment' },
-                { name: 'Recorrentes', amount: recurring, percentage: totalExpenses > 0 ? Math.round((recurring/totalExpenses)*100) : 0, type: 'recurring' },
-                { name: 'Lazer', amount: leisure, percentage: totalExpenses > 0 ? Math.round((leisure/totalExpenses)*100) : 0, type: 'leisure' }
+                { 
+                    name: 'Essenciais', 
+                    amount: essential, 
+                    percentage: totalExpenses > 0 ? Math.round((essential/totalExpenses)*100) : 0, 
+                    type: 'essential' 
+                },
+                { 
+                    name: 'Investimentos', 
+                    amount: investments, 
+                    percentage: Math.round((investments/4850)*100), 
+                    type: 'investment' 
+                },
+                { 
+                    name: 'Recorrentes', 
+                    amount: recurring, 
+                    percentage: totalExpenses > 0 ? Math.round((recurring/totalExpenses)*100) : 0, 
+                    type: 'recurring' 
+                },
+                { 
+                    name: 'Lazer', 
+                    amount: leisure, 
+                    percentage: totalExpenses > 0 ? Math.round((leisure/totalExpenses)*100) : 0, 
+                    type: 'leisure' 
+                }
             ];
             
             let html = '';
@@ -1499,7 +1596,9 @@
                         </div>
                         <div class="account-type-name">${cat.name}</div>
                         <div class="account-type-value">${formatCurrency(cat.amount)}</div>
-                        <div style="font-size: 12px; color: var(--gray);">${cat.percentage}% ${cat.type === 'investment' ? 'da renda' : 'das despesas'}</div>
+                        <div style="font-size: 12px; color: var(--gray);">
+                            ${cat.percentage}% ${cat.type === 'investment' ? 'da renda' : 'das despesas'}
+                        </div>
                     </div>
                 `;
             });
@@ -1646,6 +1745,10 @@
                 deleteBtn.style.display = 'none';
                 form.reset();
                 document.getElementById('transaction-date').value = new Date().toISOString().split('T')[0];
+                
+                // Definir valor padrão para tipo
+                document.getElementById('transaction-type').value = 'expense';
+                document.getElementById('transaction-type').dispatchEvent(new Event('change'));
             }
             
             modal.style.display = 'flex';
@@ -1789,6 +1892,7 @@
                 salario: 'Salário',
                 freelance: 'Freelance',
                 investimentos: 'Investimentos',
+                rendimentos: 'Rendimentos',
                 vendas: 'Vendas',
                 alimentacao: 'Alimentação',
                 moradia: 'Moradia',
@@ -1796,7 +1900,11 @@
                 lazer: 'Lazer',
                 saude: 'Saúde',
                 educacao: 'Educação',
-                outros: 'Outros'
+                outros: 'Outros',
+                poupanca: 'Poupança',
+                tesouro: 'Tesouro Direto',
+                acoes: 'Ações',
+                fii: 'Fundos Imobiliários'
             };
             return names[category] || category;
         }
@@ -1833,8 +1941,10 @@
         function saveToLocalStorage() {
             localStorage.setItem('financialData', JSON.stringify({
                 transactions: financialData.transactions,
+                totalSavings: financialData.totalSavings, // CORREÇÃO: Salvar total de economias
                 savingsGoal: financialData.savingsGoal,
-                monthlyBudget: financialData.monthlyBudget
+                monthlyBudget: financialData.monthlyBudget,
+                savingsRate: financialData.savingsRate
             }));
         }
 
@@ -1854,6 +1964,17 @@
             }, 3000);
         }
 
+        // Função para configurar meta de economias (extra)
+        function setSavingsGoal() {
+            const goal = prompt('Digite sua nova meta de economias (R$):', financialData.savingsGoal);
+            if (goal && !isNaN(parseFloat(goal))) {
+                financialData.savingsGoal = parseFloat(goal);
+                saveToLocalStorage();
+                updateDashboard();
+                showToast(`Meta de economias atualizada para ${formatCurrency(financialData.savingsGoal)}!`);
+            }
+        }
+
         // Simular upload de extrato
         function simulateExtractUpload() {
             showToast('Analisando extrato bancário...', 'info');
@@ -1862,9 +1983,30 @@
             setTimeout(() => {
                 // Adicionar transações simuladas do extrato
                 const simulatedTransactions = [
-                    { id: financialData.transactions.length + 1, name: "Transferência PIX", type: "income", category: "outros", amount: 150, date: new Date().toISOString().split('T')[0] },
-                    { id: financialData.transactions.length + 2, name: "Uber", type: "expense", category: "transporte", amount: 28.50, date: new Date().toISOString().split('T')[0] },
-                    { id: financialData.transactions.length + 3, name: "Farmácia", type: "expense", category: "saude", amount: 45.80, date: new Date().toISOString().split('T')[0] }
+                    { 
+                        id: financialData.transactions.length + 1, 
+                        name: "Transferência PIX", 
+                        type: "income", 
+                        category: "outros", 
+                        amount: 150, 
+                        date: new Date().toISOString().split('T')[0] 
+                    },
+                    { 
+                        id: financialData.transactions.length + 2, 
+                        name: "Uber", 
+                        type: "expense", 
+                        category: "transporte", 
+                        amount: 28.50, 
+                        date: new Date().toISOString().split('T')[0] 
+                    },
+                    { 
+                        id: financialData.transactions.length + 3, 
+                        name: "Farmácia", 
+                        type: "expense", 
+                        category: "saude", 
+                        amount: 45.80, 
+                        date: new Date().toISOString().split('T')[0] 
+                    }
                 ];
                 
                 financialData.transactions.push(...simulatedTransactions);
