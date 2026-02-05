@@ -1351,7 +1351,7 @@
         let editingTransactionId = null;
         let hasShownNotification = false;
 
-        // Estrutura de dados aprimorada
+        // Estrutura de dados
         const financialData = {
             transactions: [],
             totalSavings: 10000,
@@ -1371,7 +1371,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializeApp();
             setupEventListeners();
-            loadSampleData();
+            loadEssentialData();
             updateDashboard();
             
             // Mostrar notificação após um breve delay
@@ -1497,10 +1497,10 @@
             });
         }
 
-        // Carregar dados de exemplo
-        function loadSampleData() {
+        // Carregar dados essenciais
+        function loadEssentialData() {
+            // Apenas criar recorrências mestre de exemplo se não existirem
             if (financialData.recurrenceMasters.length === 0) {
-                // Criar recorrências mestre de exemplo
                 const sampleRecurrences = [
                     {
                         id: 1,
@@ -1511,7 +1511,7 @@
                         amount: 120,
                         dueDay: 5,
                         recurrenceType: "fixed",
-                        startDate: "2023-01-05",
+                        startDate: new Date().toISOString().split('T')[0],
                         endDate: null,
                         notes: "PIX recorrente mensal"
                     },
@@ -1524,141 +1524,106 @@
                         amount: 185,
                         dueDay: 15,
                         recurrenceType: "parceled",
-                        startDate: "2023-01-15",
-                        endDate: "2023-12-15",
-                        totalInstallments: 12,
-                        currentInstallment: 8,
-                        notes: "Compra parcelada em 12x"
-                    },
-                    {
-                        id: 3,
-                        masterId: 'rec_003',
-                        name: "Academia",
-                        type: "expense",
-                        category: "saude",
-                        amount: 90,
-                        dueDay: 3,
-                        recurrenceType: "fixed",
-                        startDate: "2023-01-03",
+                        startDate: new Date().toISOString().split('T')[0],
                         endDate: null,
-                        notes: "Mensalidade"
-                    },
-                    {
-                        id: 4,
-                        masterId: 'rec_004',
-                        name: "Faculdade Particular",
-                        type: "expense",
-                        category: "educacao",
-                        amount: 850,
-                        dueDay: 10,
-                        recurrenceType: "parceled",
-                        startDate: "2022-09-10",
-                        endDate: "2024-08-10",
-                        totalInstallments: 24,
-                        currentInstallment: 9,
-                        notes: "Graduação - 24 parcelas"
+                        totalInstallments: 12,
+                        currentInstallment: 1,
+                        notes: "Compra parcelada em 12x"
                     }
                 ];
                 
                 financialData.recurrenceMasters = sampleRecurrences;
-                
-                // Gerar transações a partir das recorrências
                 generateRecurringTransactions();
                 saveToLocalStorage();
             }
         }
 
         // ==============================
-        // SISTEMA DE RECORRÊNCIA
+        // SISTEMA DE RECORRÊNCIA COMPLETO
         // ==============================
 
-        // Gerar transações recorrentes para 12 meses futuros
+        // Gerar TODAS as parcelas futuras com base nas recorrências
         function generateRecurringTransactions() {
-            // Limpar transações recorrentes antigas (exceto as que foram pagas/modificadas)
-            financialData.transactions = financialData.transactions.filter(t => 
-                !t.isGenerated || (t.isGenerated && t.isModified)
-            );
+            console.log("Gerando transações recorrentes...");
             
-            // Data limite para gerar transações (próximos 12 meses)
+            // Data limite: próximo ano
             const endDate = new Date();
-            endDate.setMonth(endDate.getMonth() + 12);
+            endDate.setFullYear(endDate.getFullYear() + 1);
             
             // Para cada recorrência mestre
             financialData.recurrenceMasters.forEach(master => {
+                console.log(`Processando recorrência: ${master.name}`);
+                
                 const startDate = new Date(master.startDate);
                 const masterEndDate = master.endDate ? new Date(master.endDate) : endDate;
                 
-                // Data de início (início da recorrência)
                 let currentDate = new Date(startDate);
+                let parcelNumber = master.currentInstallment || 1;
                 
-                // Para parceladas, ajustar a parcela inicial
-                let currentInstallment = master.currentInstallment || 1;
-                
+                // Gerar para cada mês até a data final
                 while (currentDate <= masterEndDate && currentDate <= endDate) {
-                    // Verificar se a data atual é hoje ou futura
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
+                    const year = currentDate.getFullYear();
+                    const month = currentDate.getMonth();
+                    const day = master.dueDay;
                     
-                    if (currentDate >= today) {
-                        // Verificar se já existe uma transação para esta data
-                        const year = currentDate.getFullYear();
-                        const month = currentDate.getMonth();
-                        const day = master.dueDay;
+                    // Criar data para esta parcela
+                    const parcelDate = new Date(year, month, day);
+                    
+                    // Verificar se já existe transação para este mês
+                    const exists = financialData.transactions.some(t => {
+                        const tDate = new Date(t.date);
+                        return t.masterId === master.masterId && 
+                               tDate.getFullYear() === year &&
+                               tDate.getMonth() === month;
+                    });
+                    
+                    if (!exists) {
+                        // Verificar se é uma parcela válida
+                        let shouldCreate = true;
+                        let installmentsText = '';
                         
-                        const existingTransaction = financialData.transactions.find(t => {
-                            const tDate = new Date(t.date);
-                            return t.masterId === master.masterId && 
-                                   tDate.getFullYear() === year && 
-                                   tDate.getMonth() === month;
-                        });
+                        if (master.recurrenceType === 'parceled' && master.totalInstallments) {
+                            if (parcelNumber > master.totalInstallments) {
+                                shouldCreate = false; // Já gerou todas as parcelas
+                            } else {
+                                installmentsText = `${parcelNumber}/${master.totalInstallments}`;
+                            }
+                        }
                         
-                        if (!existingTransaction) {
-                            // Criar nova transação gerada
+                        if (shouldCreate) {
+                            // Criar transação para este mês
                             const transactionId = financialData.transactions.length > 0 
                                 ? Math.max(...financialData.transactions.map(t => t.id)) + 1 
                                 : 1;
                             
-                            // Formatar data (YYYY-MM-DD)
                             const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                             
-                            // Calcular parcela para transações parceladas
-                            let installmentsText = '';
-                            if (master.recurrenceType === 'parceled' && master.totalInstallments) {
-                                // Calcular número da parcela
-                                const monthDiff = (year - startDate.getFullYear()) * 12 + (month - startDate.getMonth());
-                                const installmentNumber = Math.min(currentInstallment + monthDiff, master.totalInstallments);
-                                
-                                if (installmentNumber <= master.totalInstallments) {
-                                    installmentsText = `${installmentNumber}/${master.totalInstallments}`;
-                                }
-                            }
+                            financialData.transactions.push({
+                                id: transactionId,
+                                masterId: master.masterId,
+                                name: master.name,
+                                type: master.type,
+                                category: master.category,
+                                amount: master.amount,
+                                date: formattedDate,
+                                dueDay: master.dueDay,
+                                installments: installmentsText,
+                                notes: master.notes,
+                                isGenerated: true,
+                                isModified: false,
+                                isFuture: parcelDate > new Date()
+                            });
                             
-                            // Só criar se não passou do total de parcelas
-                            if (master.recurrenceType !== 'parceled' || 
-                                (master.recurrenceType === 'parceled' && installmentsText !== '')) {
-                                
-                                financialData.transactions.push({
-                                    id: transactionId,
-                                    masterId: master.masterId,
-                                    name: master.name,
-                                    type: master.type,
-                                    category: master.category,
-                                    amount: master.amount,
-                                    date: formattedDate,
-                                    dueDay: master.dueDay,
-                                    installments: installmentsText,
-                                    notes: master.notes,
-                                    isGenerated: true,
-                                    isModified: false,
-                                    isFuture: currentDate > today
-                                });
+                            console.log(`Criada transação para ${formattedDate}: ${master.name} ${installmentsText}`);
+                            
+                            if (master.recurrenceType === 'parceled') {
+                                parcelNumber++;
                             }
                         }
                     }
                     
                     // Próximo mês
                     currentDate.setMonth(currentDate.getMonth() + 1);
-                    currentDate.setDate(1);
                 }
             });
             
@@ -1744,7 +1709,7 @@
         function deleteRecurrenceMaster(masterId) {
             // Remover transações geradas por esta recorrência
             financialData.transactions = financialData.transactions.filter(t => 
-                t.masterId !== masterId || t.isModified === true
+                t.masterId !== masterId
             );
             
             // Remover recorrência mestre
@@ -1758,17 +1723,6 @@
         // SISTEMA DE NOTIFICAÇÕES
         // ==============================
 
-        // Obter todas as transações futuras (próximos 12 meses)
-        function getFutureTransactions() {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            return financialData.transactions.filter(t => {
-                const tDate = new Date(t.date);
-                return tDate >= today;
-            });
-        }
-
         // Obter transações com vencimento próximo (hoje + 3 dias)
         function getUpcomingTransactions() {
             const today = new Date();
@@ -1778,8 +1732,12 @@
             threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
             
             return financialData.transactions.filter(t => {
+                if (t.type !== 'expense') return false;
+                
                 const tDate = new Date(t.date);
-                return tDate >= today && tDate <= threeDaysFromNow && t.type === 'expense';
+                tDate.setHours(0, 0, 0, 0);
+                
+                return tDate >= today && tDate <= threeDaysFromNow;
             });
         }
 
@@ -1811,6 +1769,7 @@
             
             transactions.forEach(transaction => {
                 const tDate = new Date(transaction.date);
+                tDate.setHours(0, 0, 0, 0);
                 
                 if (tDate.getTime() === today.getTime()) {
                     todayTransactions.push(transaction);
@@ -1842,7 +1801,7 @@
                 html += '<h4 style="margin: 15px 0 10px 0; color: var(--warning);">Próximos vencimentos:</h4>';
                 soonTransactions.forEach(transaction => {
                     const tDate = new Date(transaction.date);
-                    const dayDiff = Math.floor((tDate - today) / (1000 * 60 * 60 * 24));
+                    const dayDiff = Math.ceil((tDate - today) / (1000 * 60 * 60 * 24));
                     
                     html += `
                         <div class="notification-item soon">
@@ -1899,34 +1858,15 @@
             // Obter transações do mês atual (incluindo futuras)
             const currentMonthTransactions = getTransactionsForCurrentMonth();
             
-            // Obter transações futuras de outros meses para mostrar no calendário
-            const futureTransactions = getFutureTransactions();
-            
-            const today = new Date();
-            const isCurrentMonth = today.getMonth() === currentMonth && today.getFullYear() === currentYear;
-            
             // Agrupar vencimentos por dia
             const dueDates = {};
             const dueCounts = {};
             
-            // Adicionar transações do mês atual
             currentMonthTransactions.forEach(transaction => {
-                if (transaction.dueDay) {
-                    const day = transaction.dueDay;
-                    if (!dueDates[day]) {
-                        dueDates[day] = 0;
-                        dueCounts[day] = 0;
-                    }
-                    dueDates[day] += transaction.amount;
-                    dueCounts[day]++;
-                }
-            });
-            
-            // Adicionar transações futuras de outros meses para contexto
-            futureTransactions.forEach(transaction => {
-                const tDate = new Date(transaction.date);
-                if (tDate.getMonth() === currentMonth && tDate.getFullYear() === currentYear) {
+                if (transaction.type === 'expense') {
+                    const tDate = new Date(transaction.date);
                     const day = tDate.getDate();
+                    
                     if (!dueDates[day]) {
                         dueDates[day] = 0;
                         dueCounts[day] = 0;
@@ -1953,6 +1893,9 @@
             let todayTotal = 0;
             let soonTotal = 0;
             
+            const today = new Date();
+            const isCurrentMonth = today.getMonth() === currentMonth && today.getFullYear() === currentYear;
+            
             for (let day = 1; day <= totalDays; day++) {
                 const hasDueDate = dueDates[day];
                 const dueCount = dueCounts[day] || 0;
@@ -1971,9 +1914,6 @@
                         dayClass = 'has-due';
                     }
                 }
-                
-                // Verificar se é uma data futura (ainda não chegou neste mês)
-                const isFuture = isCurrentMonth && day > today.getDate();
                 
                 html += `
                     <div class="calendar-day ${dayClass}" onclick="showDayDetails(${day}, ${currentMonth}, ${currentYear})">
@@ -1995,7 +1935,7 @@
             document.getElementById('soon-total').textContent = `Total: ${formatCurrency(soonTotal)}`;
             document.getElementById('calendar-month').textContent = `${monthNames[currentMonth]} ${currentYear}`;
             
-            // Adicionar informações sobre próximos meses
+            // Adicionar preview dos próximos meses
             addNextMonthsPreview();
         }
 
@@ -2096,7 +2036,7 @@
                             </div>
                         </div>
                         <div style="font-size: 12px; color: var(--gray); margin-top: 4px;">
-                            ${transaction.category} • ${transaction.installments || 'Sem parcelamento'}
+                            ${getCategoryName(transaction.category)} • ${transaction.installments || 'Sem parcelamento'}
                         </div>
                     </div>
                 `;
@@ -2807,7 +2747,7 @@
             const leisure = expenses.filter(e => ['lazer'].includes(e.category))
                 .reduce((sum, e) => sum + e.amount, 0);
             
-            const recurring = expenses.filter(e => e.recurring)
+            const recurring = expenses.filter(e => e.masterId)
                 .reduce((sum, e) => sum + e.amount, 0);
             
             const investments = currentMonthData.filter(t => t.type === 'investment')
@@ -2862,7 +2802,7 @@
         // Atualizar lista de contas recorrentes
         function updateRecurringList() {
             const currentMonthData = getTransactionsForCurrentMonth();
-            const recurring = currentMonthData.filter(t => t.masterId || t.installments);
+            const recurring = currentMonthData.filter(t => t.masterId);
             
             let html = '';
             recurring.forEach(account => {
@@ -3008,7 +2948,34 @@
             }, 3000);
         }
 
-        // Funções que precisam ser globais para onclick
+        // ==============================
+        // FUNÇÕES GLOBAIS PARA ONCLICK
+        // ==============================
+
+        // Função para editar transação por clique
+        function editTransaction(id) {
+            showTransactionModal(id);
+        }
+
+        // Função para filtrar por categoria
+        function filterByCategory(category) {
+            alert(`Filtrando por categoria: ${getCategoryName(category)}`);
+            // Implementação futura
+        }
+
+        // Função para filtrar por tipo
+        function filterByType(type) {
+            const typeNames = {
+                essential: 'Essenciais',
+                investment: 'Investimentos',
+                recurring: 'Recorrentes',
+                leisure: 'Lazer'
+            };
+            alert(`Filtrando por tipo: ${typeNames[type]}`);
+            // Implementação futura
+        }
+
+        // Funções globais
         window.showDayDetails = showDayDetails;
         window.goToMonth = goToMonth;
         window.editTransaction = editTransaction;
