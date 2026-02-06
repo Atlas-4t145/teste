@@ -30,6 +30,7 @@
             --border-radius: 16px;
             --box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
             --transition: all 0.3s ease;
+            --auto-debit: #10b981; /* Nova cor para débito automático */
         }
 
         body {
@@ -632,6 +633,11 @@
             color: var(--secondary);
         }
 
+        .recurring-icon.auto-debit {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--auto-debit);
+        }
+
         .recurring-details {
             flex-grow: 1;
         }
@@ -931,6 +937,20 @@
             margin-left: 8px;
         }
 
+        /* Auto Debit Badge */
+        .auto-debit-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--auto-debit);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
         /* Notification Modal */
         .notification-modal {
             background-color: white;
@@ -1005,6 +1025,101 @@
             width: 12px;
             height: 12px;
             border-radius: 3px;
+        }
+
+        /* Auto Debit Toggle */
+        .auto-debit-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--light);
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 10px;
+            cursor: pointer;
+            transition: var(--transition);
+            border: 2px solid var(--gray-light);
+        }
+
+        .auto-debit-toggle:hover {
+            border-color: var(--auto-debit);
+        }
+
+        .auto-debit-toggle.active {
+            background-color: rgba(16, 185, 129, 0.05);
+            border-color: var(--auto-debit);
+        }
+
+        .auto-debit-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .auto-debit-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background-color: rgba(16, 185, 129, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--auto-debit);
+            font-size: 16px;
+        }
+
+        .auto-debit-text h4 {
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .auto-debit-text p {
+            font-size: 13px;
+            color: var(--gray);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: var(--auto-debit);
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
         }
 
         /* Animação para a badge */
@@ -1468,6 +1583,23 @@
                     <small style="color: var(--gray); font-size: 12px;">Deixe em branco para recorrência infinita</small>
                 </div>
                 
+                <!-- Seção de Débito Automático -->
+                <div class="auto-debit-toggle" id="auto-debit-toggle">
+                    <div class="auto-debit-info">
+                        <div class="auto-debit-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="auto-debit-text">
+                            <h4>Débito Automático</h4>
+                            <p>Ative para desativar notificações desta conta</p>
+                        </div>
+                    </div>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="transaction-auto-debit">
+                        <span class="toggle-slider"></span>
+                    </div>
+                </div>
+                
                 <div class="form-group">
                     <label class="form-label" for="transaction-notes">Observações</label>
                     <textarea class="form-input" id="transaction-notes" rows="3"></textarea>
@@ -1560,7 +1692,7 @@
             monthlyBudget: 0,
             savingsRate: 0.3,
             recurrenceMasters: [],
-            readNotifications: {}, // Novo: para controlar notificações lidas
+            readNotifications: {}, // Para controlar notificações lidas
             categories: {
                 essential: { budget: 0, color: '#ef4444', icon: 'home' },
                 investment: { budget: 0, color: '#10b981', icon: 'chart-line' },
@@ -1706,6 +1838,77 @@
                     `;
                 }
             });
+            
+            // Toggle de débito automático
+            const autoDebitToggle = document.getElementById('auto-debit-toggle');
+            const autoDebitCheckbox = document.getElementById('transaction-auto-debit');
+            
+            autoDebitToggle.addEventListener('click', function() {
+                autoDebitCheckbox.checked = !autoDebitCheckbox.checked;
+                autoDebitToggle.classList.toggle('active', autoDebitCheckbox.checked);
+            });
+            
+            autoDebitCheckbox.addEventListener('change', function() {
+                autoDebitToggle.classList.toggle('active', this.checked);
+            });
+        }
+
+        // ==============================
+        // SISTEMA DE DÉBITO AUTOMÁTICO
+        // ==============================
+
+        // Marcar notificações como lidas para transações com débito automático
+        function markAutoDebitNotificationsAsRead(transactionId) {
+            if (!financialData.readNotifications[transactionId]) {
+                financialData.readNotifications[transactionId] = true;
+                localStorage.setItem('readNotifications', JSON.stringify(financialData.readNotifications));
+            }
+        }
+
+        // Obter transações com vencimento próximo (hoje + 3 dias) - EXCLUINDO DÉBITO AUTOMÁTICO
+        function getUpcomingTransactions() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const threeDaysFromNow = new Date(today);
+            threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 10);
+            
+            return financialData.transactions.filter(t => {
+                if (t.type !== 'expense') return false;
+                
+                // Verificar se é débito automático
+                if (t.autoDebit === true) return false;
+                
+                const tDate = new Date(t.date);
+                tDate.setHours(0, 0, 0, 0);
+                
+                // Filtrar apenas transações não lidas
+                const isRead = financialData.readNotifications[t.id];
+                
+                return tDate >= today && tDate <= threeDaysFromNow && !isRead;
+            });
+        }
+
+        // Verificar se há débito automático nas transações recorrentes mestre
+        function updateAutoDebitForRecurrence(masterId, autoDebit) {
+            const masterIndex = financialData.recurrenceMasters.findIndex(m => m.masterId === masterId);
+            if (masterIndex === -1) return false;
+            
+            financialData.recurrenceMasters[masterIndex].autoDebit = autoDebit;
+            
+            // Atualizar todas as transações geradas por esta recorrência
+            financialData.transactions.forEach((transaction, index) => {
+                if (transaction.masterId === masterId) {
+                    financialData.transactions[index].autoDebit = autoDebit;
+                    
+                    // Marcar notificações como lidas se for débito automático
+                    if (autoDebit) {
+                        markAutoDebitNotificationsAsRead(transaction.id);
+                    }
+                }
+            });
+            
+            return true;
         }
 
         // ==============================
@@ -1777,7 +1980,8 @@
                                 notes: master.notes,
                                 isGenerated: true,
                                 isModified: false,
-                                isFuture: parcelDate > new Date()
+                                isFuture: parcelDate > new Date(),
+                                autoDebit: master.autoDebit || false
                             });
                             
                             if (master.recurrenceType === 'parceled') {
@@ -1797,6 +2001,7 @@
         // Criar nova recorrência mestre
         function createRecurrenceMaster(transactionData) {
             const recurrenceType = document.getElementById('transaction-recurrence-type').value;
+            const autoDebit = document.getElementById('transaction-auto-debit').checked;
             
             if (recurrenceType === 'none') return null;
             
@@ -1818,7 +2023,8 @@
                 recurrenceType: recurrenceType,
                 startDate: startDate,
                 endDate: endDate,
-                notes: transactionData.notes || ''
+                notes: transactionData.notes || '',
+                autoDebit: autoDebit
             };
             
             // Adicionar informações de parcelamento se for parcelada
@@ -1843,6 +2049,7 @@
             const startDate = document.getElementById('transaction-start-date').value;
             const endDate = document.getElementById('transaction-end-date').value || null;
             const dueDay = parseInt(document.getElementById('transaction-due-day').value) || 1;
+            const autoDebit = document.getElementById('transaction-auto-debit').checked;
             
             financialData.recurrenceMasters[masterIndex] = {
                 ...financialData.recurrenceMasters[masterIndex],
@@ -1854,7 +2061,8 @@
                 recurrenceType: recurrenceType,
                 startDate: startDate,
                 endDate: endDate,
-                notes: transactionData.notes || ''
+                notes: transactionData.notes || '',
+                autoDebit: autoDebit
             };
             
             // Atualizar informações de parcelamento se for parcelada
@@ -1865,6 +2073,9 @@
                 financialData.recurrenceMasters[masterIndex].currentInstallment = currentInstallment;
                 financialData.recurrenceMasters[masterIndex].totalInstallments = totalInstallments;
             }
+            
+            // Atualizar débito automático nas transações existentes
+            updateAutoDebitForRecurrence(masterId, autoDebit);
             
             return true;
         }
@@ -2062,27 +2273,6 @@
         // SISTEMA DE NOTIFICAÇÕES
         // ==============================
 
-        // Obter transações com vencimento próximo (hoje + 3 dias)
-        function getUpcomingTransactions() {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            const threeDaysFromNow = new Date(today);
-            threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 10);
-            
-            return financialData.transactions.filter(t => {
-                if (t.type !== 'expense') return false;
-                
-                const tDate = new Date(t.date);
-                tDate.setHours(0, 0, 0, 0);
-                
-                // Filtrar apenas transações não lidas
-                const isRead = financialData.readNotifications[t.id];
-                
-                return tDate >= today && tDate <= threeDaysFromNow && !isRead;
-            });
-        }
-
         // Verificar e mostrar notificações
         function checkAndShowNotifications() {
             const upcomingTransactions = getUpcomingTransactions();
@@ -2207,7 +2397,7 @@
             const dueCounts = {};
             
             currentMonthTransactions.forEach(transaction => {
-                if (transaction.type === 'expense') {
+                if (transaction.type === 'expense' && !transaction.autoDebit) {
                     const tDate = new Date(transaction.date);
                     const day = tDate.getDate();
                     
@@ -2301,10 +2491,13 @@
             dayTransactions.forEach(transaction => {
                 total += transaction.amount;
                 
+                const autoDebitBadge = transaction.autoDebit ? 
+                    '<span class="auto-debit-badge"><i class="fas fa-robot"></i> Déb. Auto</span>' : '';
+                
                 html += `
                     <div style="padding: 10px; border-bottom: 1px solid var(--gray-light);">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div style="font-weight: 600;">${transaction.name}</div>
+                            <div style="font-weight: 600;">${transaction.name} ${autoDebitBadge}</div>
                             <div style="font-weight: 700; color: ${transaction.type === 'income' ? 'var(--income)' : 'var(--expense)'}">
                                 ${formatCurrency(transaction.amount)}
                             </div>
@@ -2381,11 +2574,17 @@
             const form = document.getElementById('transaction-form');
             const deleteBtn = document.getElementById('delete-transaction');
             const deleteAllBtn = document.getElementById('delete-all-recurrences');
+            const autoDebitToggle = document.getElementById('auto-debit-toggle');
+            const autoDebitCheckbox = document.getElementById('transaction-auto-debit');
             
             // Resetar campos
             form.reset();
             document.getElementById('transaction-is-recurring-master').value = 'false';
             document.getElementById('transaction-original-id').value = '';
+            
+            // Resetar débito automático
+            autoDebitCheckbox.checked = false;
+            autoDebitToggle.classList.remove('active');
             
             // Mostrar/ocultar botões
             deleteBtn.style.display = 'none';
@@ -2407,6 +2606,12 @@
                     document.getElementById('transaction-start-date').value = transaction.date;
                     document.getElementById('transaction-due-day').value = transaction.dueDay || '';
                     document.getElementById('transaction-notes').value = transaction.notes || '';
+                    
+                    // Configurar débito automático
+                    if (transaction.autoDebit) {
+                        autoDebitCheckbox.checked = true;
+                        autoDebitToggle.classList.add('active');
+                    }
                     
                     // Verificar se é uma transação recorrente
                     if (transaction.masterId) {
@@ -2469,6 +2674,7 @@
             const recurrenceType = document.getElementById('transaction-recurrence-type').value;
             const notes = document.getElementById('transaction-notes').value;
             const isRecurringMaster = document.getElementById('transaction-is-recurring-master').value === 'true';
+            const autoDebit = document.getElementById('transaction-auto-debit').checked;
             
             // Verificar se é uma edição de transação recorrente
             let masterId = null;
@@ -2502,7 +2708,8 @@
                             dueDay: dueDay || 1,
                             notes: notes,
                             isGenerated: false,
-                            isModified: true
+                            isModified: true,
+                            autoDebit: autoDebit
                         };
                         
                         if (recurrenceType === 'parceled') {
@@ -2544,7 +2751,8 @@
                         dueDay: dueDay || 1,
                         notes: notes,
                         isGenerated: false,
-                        isModified: false
+                        isModified: false,
+                        autoDebit: autoDebit
                     };
                     
                     if (recurrenceType === 'parceled') {
@@ -2570,7 +2778,8 @@
                     amount: amount,
                     date: startDate,
                     dueDay: dueDay,
-                    notes: notes
+                    notes: notes,
+                    autoDebit: autoDebit
                 };
                 
                 if (id) {
@@ -2587,6 +2796,14 @@
                 } else {
                     financialData.transactions.push(transactionData);
                 }
+            }
+            
+            // Marcar notificações como lidas se for débito automático
+            if (autoDebit) {
+                const transactionId = id ? parseInt(id) : financialData.transactions.length > 0 
+                    ? Math.max(...financialData.transactions.map(t => t.id)) 
+                    : 1;
+                markAutoDebitNotificationsAsRead(transactionId);
             }
             
             saveToLocalStorage();
@@ -2665,6 +2882,9 @@
                         '<span class="recurrence-badge">Fixa</span>' : 
                         '<span class="recurrence-badge" style="background-color: rgba(139, 92, 246, 0.2);">Parcelada</span>';
                     
+                    const autoDebitBadge = master.autoDebit ? 
+                        '<span class="auto-debit-badge"><i class="fas fa-robot"></i> Déb. Auto</span>' : '';
+                    
                     const endDateText = master.endDate ? 
                         ` até ${formatDateDisplay(master.endDate)}` : 
                         ' (sem data final)';
@@ -2677,7 +2897,7 @@
                         <div style="background-color: var(--light); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                                 <div style="font-weight: 600; font-size: 16px;">
-                                    ${master.name} ${typeBadge}
+                                    ${master.name} ${typeBadge} ${autoDebitBadge}
                                 </div>
                                 <div style="font-weight: 700; color: ${master.type === 'income' ? 'var(--income)' : 'var(--expense)'};">
                                     ${formatCurrency(master.amount)}
@@ -2916,11 +3136,13 @@
             expensiveAccounts.forEach(account => {
                 const dueDay = account.dueDay ? `Vence dia ${account.dueDay} de cada mês` : '';
                 const installments = account.installments ? `Parcela ${account.installments}` : 'Conta fixa mensal';
+                const autoDebitBadge = account.autoDebit ? 
+                    '<span class="auto-debit-badge" style="margin-left: 5px;"><i class="fas fa-robot"></i> Déb. Auto</span>' : '';
                 
                 accountsHtml += `
                     <div class="offender-card" onclick="editTransaction(${account.id})">
                         <div class="offender-header">
-                            <div class="offender-name">${account.name}</div>
+                            <div class="offender-name">${account.name}${autoDebitBadge}</div>
                             <div class="offender-amount">${formatCurrency(account.amount)}</div>
                         </div>
                         <div class="offender-details">
@@ -3119,14 +3341,24 @@
                 const isGenerated = account.isGenerated && !account.isModified;
                 const badge = isGenerated ? '<span class="recurrence-badge"><i class="fas fa-robot"></i> Auto</span>' : '';
                 
+                // Verificar se é débito automático
+                const autoDebitBadge = account.autoDebit ? 
+                    '<span class="auto-debit-badge"><i class="fas fa-robot"></i> Déb. Auto</span>' : '';
+                
+                // Definir classe do ícone
+                let iconClass = isParceled ? 'parceled' : 'fixed';
+                if (account.autoDebit) {
+                    iconClass = 'auto-debit';
+                }
+                
                 html += `
                     <div class="recurring-item" onclick="editTransaction(${account.id})">
-                        <div class="recurring-icon ${isParceled ? 'parceled' : 'fixed'}">
+                        <div class="recurring-icon ${iconClass}">
                             <i class="fas fa-${icon}"></i>
                         </div>
                         <div class="recurring-details">
                             <div class="recurring-title">
-                                ${account.name} ${badge}
+                                ${account.name} ${badge} ${autoDebitBadge}
                             </div>
                             <div class="recurring-info">
                                 ${isParceled ? `Parcela ${account.installments}` : 'PIX recorrente • Mensal'}
