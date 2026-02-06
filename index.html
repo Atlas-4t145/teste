@@ -1280,8 +1280,8 @@
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label" for="transaction-due-day">Dia de Vencimento *</label>
-                        <input type="number" class="form-input" id="transaction-due-day" min="1" max="31" required>
+                        <label class="form-label" for="transaction-due-day">Dia de Vencimento</label>
+                        <input type="number" class="form-input" id="transaction-due-day" min="1" max="31" placeholder="Opcional">
                     </div>
                     
                     <div class="form-group">
@@ -1390,7 +1390,7 @@
 
         // Configurações iniciais
         const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
-                          "Jullio", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+                          "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
         
         let currentDate = new Date();
         let currentMonth = currentDate.getMonth();
@@ -1483,15 +1483,21 @@
                 if (type === 'none') {
                     installmentsGroup.style.display = 'none';
                     endDateGroup.style.display = 'none';
+                    // Dia de vencimento NÃO é obrigatório para transações não recorrentes
                     dueDayInput.required = false;
+                    dueDayInput.placeholder = "Opcional";
                 } else if (type === 'fixed') {
                     installmentsGroup.style.display = 'none';
                     endDateGroup.style.display = 'block';
+                    // Dia de vencimento É obrigatório para recorrências
                     dueDayInput.required = true;
+                    dueDayInput.placeholder = "Dia do vencimento *";
                 } else if (type === 'parceled') {
                     installmentsGroup.style.display = 'block';
                     endDateGroup.style.display = 'block';
+                    // Dia de vencimento É obrigatório para recorrências
                     dueDayInput.required = true;
+                    dueDayInput.placeholder = "Dia do vencimento *";
                 }
             });
             
@@ -1628,7 +1634,7 @@
             const masterId = 'rec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             const startDate = document.getElementById('transaction-start-date').value;
             const endDate = document.getElementById('transaction-end-date').value || null;
-            const dueDay = parseInt(document.getElementById('transaction-due-day').value);
+            const dueDay = parseInt(document.getElementById('transaction-due-day').value) || 1;
             
             const master = {
                 id: financialData.recurrenceMasters.length > 0 
@@ -1667,7 +1673,7 @@
             const recurrenceType = document.getElementById('transaction-recurrence-type').value;
             const startDate = document.getElementById('transaction-start-date').value;
             const endDate = document.getElementById('transaction-end-date').value || null;
-            const dueDay = parseInt(document.getElementById('transaction-due-day').value);
+            const dueDay = parseInt(document.getElementById('transaction-due-day').value) || 1;
             
             financialData.recurrenceMasters[masterIndex] = {
                 ...financialData.recurrenceMasters[masterIndex],
@@ -2109,7 +2115,8 @@
             const name = document.getElementById('transaction-name').value;
             const category = document.getElementById('transaction-category').value;
             const startDate = document.getElementById('transaction-start-date').value;
-            const dueDay = parseInt(document.getElementById('transaction-due-day').value);
+            const dueDay = document.getElementById('transaction-due-day').value ? 
+                parseInt(document.getElementById('transaction-due-day').value) : null;
             const recurrenceType = document.getElementById('transaction-recurrence-type').value;
             const notes = document.getElementById('transaction-notes').value;
             const isRecurringMaster = document.getElementById('transaction-is-recurring-master').value === 'true';
@@ -2143,7 +2150,7 @@
                             category: category,
                             amount: amount,
                             date: startDate,
-                            dueDay: dueDay,
+                            dueDay: dueDay || 1,
                             notes: notes,
                             isGenerated: false,
                             isModified: true
@@ -2185,7 +2192,7 @@
                         category: category,
                         amount: amount,
                         date: startDate,
-                        dueDay: dueDay,
+                        dueDay: dueDay || 1,
                         notes: notes,
                         isGenerated: false,
                         isModified: false
