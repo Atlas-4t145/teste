@@ -137,6 +137,118 @@
             font-size: 18px;
         }
 
+        /* Notification Bell */
+        .notification-bell {
+            position: relative;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .notification-bell i {
+            font-size: 24px;
+            color: var(--gray);
+            transition: var(--transition);
+        }
+
+        .notification-bell:hover i {
+            color: var(--warning);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: var(--danger);
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Notification Dropdown */
+        .notification-dropdown {
+            position: absolute;
+            top: 60px;
+            right: 0;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            width: 380px;
+            z-index: 1000;
+            display: none;
+            overflow: hidden;
+        }
+
+        .notification-dropdown.show {
+            display: block;
+        }
+
+        .notification-dropdown-header {
+            padding: 20px;
+            background-color: var(--light);
+            border-bottom: 1px solid var(--gray-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .notification-dropdown-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .notification-dropdown-header button {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .notification-dropdown-content {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .notification-dropdown-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--gray-light);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .notification-dropdown-item:hover {
+            background-color: var(--light);
+        }
+
+        .notification-dropdown-item.today {
+            border-left: 4px solid var(--danger);
+        }
+
+        .notification-dropdown-item.soon {
+            border-left: 4px solid var(--warning);
+        }
+
+        .notification-dropdown-empty {
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--gray);
+        }
+
+        .notification-dropdown-footer {
+            padding: 15px 20px;
+            text-align: center;
+            background-color: var(--light);
+            border-top: 1px solid var(--gray-light);
+        }
+
         /* Cards Principais */
         .financial-overview {
             display: grid;
@@ -895,6 +1007,17 @@
             border-radius: 3px;
         }
 
+        /* Animação para a badge */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .notification-badge-pulse {
+            animation: pulse 0.5s ease-in-out;
+        }
+
         /* Responsividade */
         @media (max-width: 768px) {
             .header {
@@ -925,6 +1048,11 @@
             .form-row, .form-installments {
                 grid-template-columns: 1fr;
             }
+            
+            .notification-dropdown {
+                width: 320px;
+                right: -50px;
+            }
         }
 
         @media (max-width: 576px) {
@@ -950,6 +1078,11 @@
             .btn-group {
                 flex-direction: column;
             }
+            
+            .notification-dropdown {
+                width: 280px;
+                right: -80px;
+            }
         }
     </style>
 </head>
@@ -973,6 +1106,27 @@
                     <i class="fas fa-plus"></i>
                     Nova Transação
                 </button>
+                
+                <!-- Botão de Notificações -->
+                <div class="notification-bell" id="notification-bell">
+                    <i class="fas fa-bell"></i>
+                    <div class="notification-badge" id="notification-badge" style="display: none;">0</div>
+                    
+                    <!-- Dropdown de Notificações -->
+                    <div class="notification-dropdown" id="notification-dropdown">
+                        <div class="notification-dropdown-header">
+                            <h3><i class="fas fa-bell"></i> Vencimentos Próximos</h3>
+                            <button id="mark-all-read">Marcar como lidas</button>
+                        </div>
+                        <div class="notification-dropdown-content" id="notification-dropdown-content">
+                            <!-- Conteúdo dinâmico será inserido aqui -->
+                        </div>
+                        <div class="notification-dropdown-footer">
+                            <small>Mostrando vencimentos dos próximos 3 dias</small>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="user-avatar">JS</div>
             </div>
         </div>
@@ -1406,6 +1560,7 @@
             monthlyBudget: 0,
             savingsRate: 0.3,
             recurrenceMasters: [],
+            readNotifications: {}, // Novo: para controlar notificações lidas
             categories: {
                 essential: { budget: 0, color: '#ef4444', icon: 'home' },
                 investment: { budget: 0, color: '#10b981', icon: 'chart-line' },
@@ -1436,6 +1591,10 @@
                 financialData.savingsRate = parsed.savingsRate || 0.3;
             }
             
+            // Carregar notificações visualizadas
+            const readNotifications = localStorage.getItem('readNotifications') || '{}';
+            financialData.readNotifications = JSON.parse(readNotifications);
+            
             // Configurar data atual nos campos
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('transaction-start-date').value = today;
@@ -1445,6 +1604,12 @@
             
             // Gerar transações recorrentes se houver
             generateRecurringTransactions();
+            
+            // Mostrar notificações após um pequeno delay (para garantir que tudo está carregado)
+            setTimeout(() => {
+                updateNotificationBell();
+                checkAndShowNotifications();
+            }, 500);
         }
 
         // Configurar eventos
@@ -1458,6 +1623,10 @@
             
             // Gerenciar recorrências
             document.getElementById('manage-recurrences').addEventListener('click', showRecurrenceManager);
+            
+            // Botão de notificações
+            document.getElementById('notification-bell').addEventListener('click', toggleNotificationDropdown);
+            document.getElementById('mark-all-read').addEventListener('click', markAllNotificationsAsRead);
             
             // Modal de transação
             document.getElementById('modal-close').addEventListener('click', hideTransactionModal);
@@ -1715,6 +1884,181 @@
         }
 
         // ==============================
+        // SISTEMA DE SININHO DE NOTIFICAÇÕES
+        // ==============================
+
+        // Atualizar o sininho de notificações
+        function updateNotificationBell() {
+            const upcomingTransactions = getUpcomingTransactions();
+            const unreadCount = upcomingTransactions.length;
+            const badge = document.getElementById('notification-badge');
+            
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                badge.style.display = 'flex';
+                
+                // Adicionar animação de pulse
+                badge.classList.add('notification-badge-pulse');
+                setTimeout(() => {
+                    badge.classList.remove('notification-badge-pulse');
+                }, 1000);
+            } else {
+                badge.style.display = 'none';
+            }
+            
+            // Atualizar conteúdo do dropdown
+            updateNotificationDropdown();
+        }
+
+        // Atualizar dropdown de notificações
+        function updateNotificationDropdown() {
+            const upcomingTransactions = getUpcomingTransactions();
+            const container = document.getElementById('notification-dropdown-content');
+            
+            if (upcomingTransactions.length === 0) {
+                container.innerHTML = `
+                    <div class="notification-dropdown-empty">
+                        <i class="fas fa-check-circle" style="font-size: 48px; color: var(--income); margin-bottom: 15px;"></i>
+                        <p>Nenhum vencimento próximo</p>
+                        <small style="color: var(--gray);">Você está em dia com suas contas</small>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            
+            // Separar transações de hoje e próximos dias
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const todayTransactions = [];
+            const soonTransactions = [];
+            
+            upcomingTransactions.forEach(transaction => {
+                const tDate = new Date(transaction.date);
+                tDate.setHours(0, 0, 0, 0);
+                
+                if (tDate.getTime() === today.getTime()) {
+                    todayTransactions.push(transaction);
+                } else {
+                    soonTransactions.push(transaction);
+                }
+            });
+            
+            // Transações de hoje
+            if (todayTransactions.length > 0) {
+                html += '<div style="padding: 15px 20px 10px 20px; background-color: rgba(239, 68, 68, 0.05); font-size: 13px; font-weight: 600; color: var(--danger);">VENCENDO HOJE</div>';
+                
+                todayTransactions.forEach(transaction => {
+                    html += `
+                        <div class="notification-dropdown-item today" onclick="editTransaction(${transaction.id})">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;">
+                                <div style="font-weight: 600;">${transaction.name}</div>
+                                <div style="font-weight: 700; color: var(--danger);">${formatCurrency(transaction.amount)}</div>
+                            </div>
+                            <div style="font-size: 13px; color: var(--gray); display: flex; justify-content: space-between;">
+                                <div>${getCategoryName(transaction.category)}</div>
+                                <div>${transaction.installments || 'Conta mensal'}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            // Transações próximas
+            if (soonTransactions.length > 0) {
+                html += '<div style="padding: 15px 20px 10px 20px; background-color: rgba(245, 158, 11, 0.05); font-size: 13px; font-weight: 600; color: var(--warning);">PRÓXIMOS VENCIMENTOS</div>';
+                
+                soonTransactions.forEach(transaction => {
+                    const tDate = new Date(transaction.date);
+                    const dayDiff = Math.ceil((tDate - today) / (1000 * 60 * 60 * 24));
+                    
+                    html += `
+                        <div class="notification-dropdown-item soon" onclick="editTransaction(${transaction.id})">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;">
+                                <div style="font-weight: 600;">${transaction.name}</div>
+                                <div style="font-weight: 700; color: var(--warning);">${formatCurrency(transaction.amount)}</div>
+                            </div>
+                            <div style="font-size: 13px; color: var(--gray); display: flex; justify-content: space-between;">
+                                <div>${getCategoryName(transaction.category)}</div>
+                                <div>Vence em ${dayDiff} dia(s) • ${transaction.installments || 'Conta mensal'}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            // Resumo
+            const todayTotal = todayTransactions.reduce((sum, t) => sum + t.amount, 0);
+            const soonTotal = soonTransactions.reduce((sum, t) => sum + t.amount, 0);
+            const total = todayTotal + soonTotal;
+            
+            html += `
+                <div style="padding: 15px 20px; background-color: var(--light); border-top: 1px solid var(--gray-light);">
+                    <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px;">
+                        <span>Total hoje:</span>
+                        <span style="font-weight: 600; color: var(--danger);">${formatCurrency(todayTotal)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px;">
+                        <span>Total próximos dias:</span>
+                        <span style="font-weight: 600; color: var(--warning);">${formatCurrency(soonTotal)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 700; padding-top: 10px; border-top: 1px solid var(--gray-light);">
+                        <span>Total geral:</span>
+                        <span>${formatCurrency(total)}</span>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+
+        // Alternar dropdown de notificações
+        function toggleNotificationDropdown() {
+            const dropdown = document.getElementById('notification-dropdown');
+            dropdown.classList.toggle('show');
+            
+            // Fechar dropdown ao clicar fora
+            if (dropdown.classList.contains('show')) {
+                setTimeout(() => {
+                    document.addEventListener('click', closeNotificationDropdownOnClickOutside);
+                }, 10);
+            } else {
+                document.removeEventListener('click', closeNotificationDropdownOnClickOutside);
+            }
+        }
+
+        // Fechar dropdown ao clicar fora
+        function closeNotificationDropdownOnClickOutside(event) {
+            const dropdown = document.getElementById('notification-dropdown');
+            const bell = document.getElementById('notification-bell');
+            
+            if (!dropdown.contains(event.target) && !bell.contains(event.target)) {
+                dropdown.classList.remove('show');
+                document.removeEventListener('click', closeNotificationDropdownOnClickOutside);
+            }
+        }
+
+        // Marcar todas as notificações como lidas
+        function markAllNotificationsAsRead() {
+            const upcomingTransactions = getUpcomingTransactions();
+            
+            upcomingTransactions.forEach(transaction => {
+                financialData.readNotifications[transaction.id] = true;
+            });
+            
+            localStorage.setItem('readNotifications', JSON.stringify(financialData.readNotifications));
+            
+            updateNotificationBell();
+            
+            // Fechar dropdown
+            document.getElementById('notification-dropdown').classList.remove('show');
+            
+            showToast('Todas as notificações marcadas como lidas!');
+        }
+
+        // ==============================
         // SISTEMA DE NOTIFICAÇÕES
         // ==============================
 
@@ -1732,7 +2076,10 @@
                 const tDate = new Date(t.date);
                 tDate.setHours(0, 0, 0, 0);
                 
-                return tDate >= today && tDate <= threeDaysFromNow;
+                // Filtrar apenas transações não lidas
+                const isRead = financialData.readNotifications[t.id];
+                
+                return tDate >= today && tDate <= threeDaysFromNow && !isRead;
             });
         }
 
@@ -1740,11 +2087,13 @@
         function checkAndShowNotifications() {
             const upcomingTransactions = getUpcomingTransactions();
             
-            if (upcomingTransactions.length > 0 && !hasShownNotification) {
+            // SEMPRE mostrar notificação popup ao carregar, independente de já ter mostrado
+            if (upcomingTransactions.length > 0) {
                 showNotificationModal(upcomingTransactions);
-                hasShownNotification = true;
-                localStorage.setItem('notificationShown', JSON.stringify(true));
             }
+            
+            // Atualizar o sininho
+            updateNotificationBell();
         }
 
         // Mostrar modal de notificação
@@ -2405,6 +2754,7 @@
             updateHealthScore();
             updateAccountCategories();
             updateRecurringList();
+            updateNotificationBell();
         }
 
         // Atualizar cards de visão geral
@@ -2936,6 +3286,8 @@
         window.filterByType = filterByType;
         window.editRecurrenceMaster = editRecurrenceMaster;
         window.deleteRecurrenceMasterConfirm = deleteRecurrenceMasterConfirm;
+        window.toggleNotificationDropdown = toggleNotificationDropdown;
+        window.markAllNotificationsAsRead = markAllNotificationsAsRead;
     </script>
 </body>
 </html>
